@@ -9,9 +9,15 @@ import SwiftUI
 
 @main
 struct LDBL_DraftApp: App {
+
+    @StateObject private var draftStore = DraftStore()
+
     var body: some Scene {
+
         WindowGroup {
+
             ContentView()
+                .environmentObject(draftStore)
         }
     }
 }

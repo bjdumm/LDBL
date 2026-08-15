@@ -8,17 +8,39 @@
 import SwiftUI
 
 struct ContentView: View {
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+
+        TabView {
+
+            DraftView()
+                .tabItem {
+                    Label(
+                        "Draft",
+                        systemImage: "football"
+                    )
+                }
+
+            DraftBoardView()
+                .tabItem {
+                    Label(
+                        "Board",
+                        systemImage: "list.number"
+                    )
+                }
+
+            TeamsView()
+                .tabItem {
+                    Label(
+                        "Teams",
+                        systemImage: "person.3"
+                    )
+                }
         }
-        .padding()
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(DraftStore())
 }
