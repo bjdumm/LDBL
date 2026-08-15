@@ -8,16 +8,12 @@
 import SwiftUI
 
 @main
-struct LDBL_DraftApp: App {
-
-    @StateObject private var draftStore = DraftStore()
+struct LDBLApp: App {
 
     var body: some Scene {
 
         WindowGroup {
-
             ContentView()
-                .environmentObject(draftStore)
         }
     }
 }

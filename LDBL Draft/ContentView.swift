@@ -7,40 +7,41 @@
 
 import SwiftUI
 
+import SwiftUI
+
+/*
+struct ContentView: View {
+
+    var body: some View {
+        SpreadsheetTestView()
+    }
+}*/
+
+
 struct ContentView: View {
 
     var body: some View {
 
         TabView {
 
-            DraftView()
+            FantasyHomeView()
                 .tabItem {
                     Label(
-                        "Draft",
+                        "Fantasy",
                         systemImage: "football"
                     )
                 }
 
-            DraftBoardView()
+            BeerGamesHomeView()
                 .tabItem {
                     Label(
-                        "Board",
-                        systemImage: "list.number"
-                    )
-                }
-
-            TeamsView()
-                .tabItem {
-                    Label(
-                        "Teams",
-                        systemImage: "person.3"
+                        "Beer Games",
+                        systemImage: "trophy"
                     )
                 }
         }
     }
 }
 
-#Preview {
-    ContentView()
-        .environmentObject(DraftStore())
-}
+
+
