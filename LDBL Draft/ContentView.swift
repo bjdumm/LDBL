@@ -18,6 +18,8 @@ struct ContentView: View {
 }*/
 
 
+import SwiftUI
+
 struct ContentView: View {
 
     var body: some View {
@@ -39,9 +41,16 @@ struct ContentView: View {
                         systemImage: "trophy"
                     )
                 }
+
+            ManagersHomeView()
+                .tabItem {
+                    Label(
+                        "Managers",
+                        systemImage: "person.3.fill"
+                    )
+                }
         }
     }
 }
-
 
 

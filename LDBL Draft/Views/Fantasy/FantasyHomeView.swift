@@ -15,19 +15,52 @@ struct FantasyHomeView: View {
 
             List {
 
+                Section("Results") {
 
-                NavigationLink {
-                    FantasyHistoryView()
-                } label: {
-                    Label(
-                        "League History",
-                        systemImage: "clock.arrow.circlepath"
-                    )
+                    NavigationLink {
+
+                        SeasonDetailsView()
+
+                    } label: {
+
+                        Label(
+                            "Season Details",
+                            systemImage:
+                                "calendar"
+                        )
+                    }
+                    
+                    NavigationLink {
+
+                        FantasyWinLossView()
+
+                    } label: {
+
+                        Label(
+                            "Win-Loss Records",
+                            systemImage:
+                                "chart.bar.fill"
+                        )
+                    }
+                }
+
+                Section("League History") {
+
+                    NavigationLink {
+
+                        AccumulatedEarningsView()
+
+                    } label: {
+
+                        Label(
+                            "Accumulated Earnings",
+                            systemImage:
+                                "dollarsign.circle.fill"
+                        )
+                    }
                 }
             }
             .navigationTitle("Fantasy")
         }
     }
 }
-
-

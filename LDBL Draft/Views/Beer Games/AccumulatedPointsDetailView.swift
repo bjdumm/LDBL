@@ -73,8 +73,8 @@ struct AccumulatedPointsDetailView: View {
                 ) { year in
 
                     HStack {
-
-                        Text("\(year)")
+                        Text(verbatim: "\(year)")
+                        
 
                         Spacer()
 

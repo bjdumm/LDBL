@@ -127,7 +127,212 @@ final class SpreadsheetService {
             rows: rows
         )
     }
+    
+    // MARK: - Fantasy
+
+    func loadSeasonDetails()
+        async throws -> [FantasySeasonDetails] {
+
+        let rows =
+            try await fetchSheet(
+                named: "Season Details"
+            )
+
+        return SeasonDetailsParser.parse(
+            rows: rows
+        )
+    }
+    
+    func loadAccumulatedEarnings()
+        async throws -> [AccumulatedEarningsPlayer] {
+
+        let rows =
+            try await fetchSheet(
+                named: "LDBL Record Holders"
+            )
+
+        return AccumulatedEarningsParser.parse(
+            rows: rows
+        )
+    }
+    
+    // MARK: - Managers
+
+    func loadManagerProfiles()
+        async throws -> [ManagerProfile] {
+
+        async let seasonRequest =
+            loadSeasonDetails()
+
+        async let earningsRequest =
+            loadAccumulatedEarnings()
+
+        async let scoreboardRequest =
+            loadScoreboardAll()
+            
+        async let actualRecordsRequest =
+            loadFantasyWinLoss()
+
+
+            let (
+                seasons,
+                earnings,
+                scoreboard,
+                actualRecords
+            ) = try await (
+                seasonRequest,
+                earningsRequest,
+                scoreboardRequest,
+                actualRecordsRequest
+            )
+
+
+        var names = Set<String>()
+
+
+        // Fantasy names
+        for season in seasons {
+
+            for player in season.players {
+                names.insert(player.name)
+            }
+        }
+
+
+        // Earnings names
+        for player in earnings {
+            names.insert(player.player)
+        }
+
+
+        // Beer Games names
+        for beerGameSeason in scoreboard {
+
+            for entry in beerGameSeason.entries {
+                names.insert(entry.player)
+            }
+        }
+            
+        for season in actualRecords.seasons {
+
+            for player in season.players {
+
+                names.insert(
+                    ManagerNameNormalizer
+                        .normalize(
+                            player.player
+                        )
+                )
+            }
+        }
+
+
+        let profiles =
+            names.map { name in
+
+                // MARK: Fantasy Seasons
+
+                var managerSeasons:
+                    [ManagerSeasonStats] = []
+
+                for season in seasons {
+
+                    if let player =
+                        season.players.first(
+                            where: {
+                                $0.name == name
+                            }
+                        ) {
+
+                        managerSeasons.append(
+                            ManagerSeasonStats(
+                                manager: name,
+                                year: season.year,
+                                wins: player.wins,
+                                losses: player.losses
+                            )
+                        )
+                    }
+                }
+
+
+                // MARK: Earnings
+
+                let managerEarnings =
+                    earnings.first {
+                        $0.player == name
+                    }
+
+
+                // MARK: Beer Games
+
+                let beerGameResults =
+                    scoreboard
+                        .flatMap {
+                            $0.entries
+                        }
+                        .filter {
+                            $0.player == name
+                        }
+                        .sorted {
+                            $0.year > $1.year
+                        }
+
+                let managerActualRecords =
+                    actualRecords.seasons
+                        .flatMap {
+                            $0.players
+                        }
+                        .filter {
+                            ManagerNameNormalizer
+                                .normalize(
+                                    $0.player
+                                ) == name
+                        }
+                        .sorted {
+                            $0.year > $1.year
+                        }
+                
+                
+                return ManagerProfile(
+                    name: name,
+                    seasons:
+                        managerSeasons.sorted {
+                            $0.year > $1.year
+                        },
+                    earnings:
+                        managerEarnings,
+                    beerGameResults:
+                        beerGameResults,
+                    actualFantasyRecords:
+                        managerActualRecords
+                )
+            }
+
+
+        return profiles.sorted {
+            $0.name < $1.name
+        }
+    }
+    
+    
+    func loadFantasyWinLoss()
+        async throws -> FantasyWinLossData {
+
+        let rows =
+            try await fetchSheet(
+                named: "LDBL Win-Loss"
+            )
+
+        return FantasyWinLossParser.parse(
+            rows: rows
+        )
+    }
 }
+
+
+
+
 
 
 

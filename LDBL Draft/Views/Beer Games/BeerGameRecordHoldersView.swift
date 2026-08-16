@@ -57,7 +57,7 @@ struct BeerGameRecordHoldersView: View {
 
                                     Spacer()
 
-                                    Text("\(record.season)")
+                                    Text(verbatim: "\(record.season)")   // Text("\(record.season)")
                                 }
                                 .font(.caption)
                                 .foregroundStyle(

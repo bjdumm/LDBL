@@ -10,10 +10,21 @@ import SwiftUI
 @main
 struct LDBLApp: App {
 
+    @StateObject private var leagueData =
+        LeagueDataStore()
+
     var body: some Scene {
 
         WindowGroup {
+
             ContentView()
+                .environmentObject(
+                    leagueData
+                )
+                .task {
+                    await leagueData
+                        .loadIfNeeded()
+                }
         }
     }
 }
