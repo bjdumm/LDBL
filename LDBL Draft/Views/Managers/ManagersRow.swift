@@ -1,10 +1,3 @@
-//
-//  ManagersRow.swift
-//  LDBL Draft
-//
-//  Created by Brennan Dumm on 8/16/26.
-//
-
 import SwiftUI
 
 struct ManagerRow: View {
@@ -22,6 +15,7 @@ struct ManagerRow: View {
             .font(.largeTitle)
             .foregroundStyle(.secondary)
 
+
             VStack(
                 alignment: .leading,
                 spacing: 4
@@ -30,26 +24,35 @@ struct ManagerRow: View {
                 Text(manager.name)
                     .font(.headline)
 
-                if manager.careerGames > 0 {
+
+                if manager.actualCareerWins +
+                    manager.actualCareerLosses > 0 {
 
                     Text(
-                        "\(manager.careerWins)-\(manager.careerLosses) career"
+                        "\(manager.actualCareerWins)-\(manager.actualCareerLosses) actual fantasy"
                     )
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    
-                    if manager.beerGameSeasonsPlayed > 0 {
+                    .foregroundStyle(
+                        .secondary
+                    )
+                }
 
-                        Text(
-                            "\(manager.averageBeerGamePoints, specifier: "%.1f") avg Beer Game pts"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
+
+                if manager.beerGameSeasonsPlayed > 0 {
+
+                    Text(
+                        "\(manager.averageBeerGamePoints, specifier: "%.1f") avg Beer Game pts"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(
+                        .secondary
+                    )
                 }
             }
 
+
             Spacer()
+
 
             if manager.totalWinnings > 0 {
 

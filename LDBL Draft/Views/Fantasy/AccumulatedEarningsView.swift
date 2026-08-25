@@ -9,49 +9,42 @@ import SwiftUI
 
 struct AccumulatedEarningsView: View {
 
-    @StateObject private var viewModel =
-        AccumulatedEarningsViewModel()
+    @EnvironmentObject var leagueData:
+        LeagueDataStore
+
 
     private var rankedPlayers:
         [AccumulatedEarningsPlayer] {
-        
-            viewModel.players.sorted {
+
+        leagueData
+            .accumulatedEarnings
+            .sorted {
                 $0.returnAmount >
                 $1.returnAmount
             }
-       
     }
+
 
     var body: some View {
 
         Group {
 
-            if viewModel.isLoading &&
-                viewModel.players.isEmpty {
+            if leagueData.isLoading &&
+                leagueData
+                    .accumulatedEarnings
+                    .isEmpty {
 
                 ProgressView(
                     "Loading Earnings..."
-                )
-
-            } else if
-                !viewModel.errorMessage.isEmpty &&
-                viewModel.players.isEmpty {
-
-                ContentUnavailableView(
-                    "Unable to Load Earnings",
-                    systemImage:
-                        "exclamationmark.triangle",
-                    description:
-                        Text(
-                            viewModel.errorMessage
-                        )
                 )
 
             } else {
 
                 List {
 
-                    Section("Career Winnings") {
+                    Section(
+                        "Career Earnings"
+                    ) {
 
                         ForEach(
                             Array(
@@ -74,26 +67,38 @@ struct AccumulatedEarningsView: View {
                                     Text(
                                         "#\(index + 1)"
                                     )
-                                    .fontWeight(.bold)
-                                    .frame(width: 35)
+                                    .fontWeight(
+                                        .bold
+                                    )
+                                    .frame(
+                                        width: 35
+                                    )
+
 
                                     Text(
                                         player.player
                                     )
 
+
                                     Spacer()
 
+
                                     Text(
-                                        player.totalWinnings,
+                                        player.returnAmount,
                                         format:
                                             .currency(
-                                                code: "USD"
+                                                code:
+                                                    "USD"
                                             )
                                             .precision(
-                                                .fractionLength(0)
+                                                .fractionLength(
+                                                    0
+                                                )
                                             )
                                     )
-                                    .fontWeight(.semibold)
+                                    .fontWeight(
+                                        .semibold
+                                    )
                                 }
                             }
                         }
@@ -104,11 +109,9 @@ struct AccumulatedEarningsView: View {
         .navigationTitle(
             "Accumulated Earnings"
         )
-        .task {
-            await viewModel.load()
-        }
         .refreshable {
-            await viewModel.load()
+
+            await leagueData.refresh()
         }
     }
 }

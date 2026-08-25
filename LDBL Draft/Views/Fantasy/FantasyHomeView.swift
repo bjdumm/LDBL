@@ -29,7 +29,8 @@ struct FantasyHomeView: View {
                                 "calendar"
                         )
                     }
-                    
+
+
                     NavigationLink {
 
                         FantasyWinLossView()
@@ -44,7 +45,10 @@ struct FantasyHomeView: View {
                     }
                 }
 
-                Section("League History") {
+
+                Section(
+                    "League History"
+                ) {
 
                     NavigationLink {
 
@@ -60,7 +64,9 @@ struct FantasyHomeView: View {
                     }
                 }
             }
-            .navigationTitle("Fantasy")
+            .navigationTitle(
+                "Fantasy"
+            )
         }
     }
 }

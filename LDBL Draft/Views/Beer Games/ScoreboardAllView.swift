@@ -9,42 +9,27 @@ import SwiftUI
 
 struct ScoreboardAllView: View {
 
-    @StateObject private var viewModel =
-        ScoreboardAllViewModel()
+    @EnvironmentObject var leagueData:
+        LeagueDataStore
 
     var body: some View {
 
         Group {
 
-            if viewModel.isLoading &&
-                viewModel.seasons.isEmpty {
+            if leagueData.isLoading &&
+                leagueData.scoreboard.isEmpty {
 
                 ProgressView(
                     "Loading Scoreboard..."
                 )
 
-            } else if !viewModel.errorMessage.isEmpty &&
-                        viewModel.seasons.isEmpty {
-
-                ContentUnavailableView(
-                    "Unable to Load Scoreboard",
-                    systemImage:
-                        "exclamationmark.triangle",
-                    description:
-                        Text(
-                            viewModel.errorMessage
-                        )
-                )
-
             } else {
 
                 List(
-                    viewModel.seasons
+                    leagueData.scoreboard
                 ) { season in
 
-                    Section(
-                        header: Text(verbatim: "\(season.year)")//"\(season.year)"
-                    ) {
+                    Section {
 
                         ForEach(
                             season.entries
@@ -63,30 +48,53 @@ struct ScoreboardAllView: View {
                                     Text(
                                         "#\(entry.place)"
                                     )
-                                    .fontWeight(.bold)
-                                    .frame(width: 35)
+                                    .fontWeight(
+                                        .bold
+                                    )
+                                    .frame(
+                                        width: 35
+                                    )
 
-                                    Text(entry.player)
+
+                                    Text(
+                                        ManagerNameNormalizer
+                                            .normalize(
+                                                entry.player
+                                            )
+                                    )
+
 
                                     Spacer()
+
 
                                     Text(
                                         "\(entry.totalPoints) pts"
                                     )
-                                    .fontWeight(.semibold)
+                                    .fontWeight(
+                                        .semibold
+                                    )
                                 }
                             }
                         }
+
+                    } header: {
+
+                        Text(
+                            verbatim:
+                                String(
+                                    season.year
+                                )
+                        )
                     }
                 }
             }
         }
-        .navigationTitle("Scoreboard")
-        .task {
-            await viewModel.load()
-        }
+        .navigationTitle(
+            "Scoreboard"
+        )
         .refreshable {
-            await viewModel.load()
+
+            await leagueData.refresh()
         }
     }
 }

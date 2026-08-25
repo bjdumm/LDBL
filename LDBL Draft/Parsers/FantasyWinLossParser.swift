@@ -1,10 +1,3 @@
-//
-//  FantasyWinLossParser.swift
-//  LDBL Draft
-//
-//  Created by Brennan Dumm on 8/16/26.
-//
-
 import Foundation
 
 struct FantasyWinLossParser {
@@ -13,53 +6,66 @@ struct FantasyWinLossParser {
         rows: [[String]]
     ) -> FantasyWinLossData {
 
-        var seasonResults:
+        var resultsByYear:
             [Int: [FantasyActualRecord]] = [:]
 
         for rowIndex in rows.indices {
 
-            let row = rows[rowIndex]
+            guard rowIndex + 1 < rows.count else {
+                continue
+            }
+
+            let yearRow = rows[rowIndex]
+            let headerRow = rows[rowIndex + 1]
 
             let yearColumns =
-                findYearColumns(in: row)
+                findYearColumns(
+                    in: yearRow,
+                    headerRow: headerRow
+                )
 
             guard !yearColumns.isEmpty else {
                 continue
             }
 
-            let headerIndex =
-                rowIndex + 1
-
-            guard headerIndex < rows.count else {
-                continue
-            }
-
-            let firstPlayerIndex =
+            let firstPlayerRow =
                 rowIndex + 2
 
             for yearInfo in yearColumns {
 
-                parseSeason(
-                    year: yearInfo.year,
-                    startColumn: yearInfo.column,
-                    firstPlayerIndex:
-                        firstPlayerIndex,
-                    rows: rows,
-                    results: &seasonResults
-                )
+                let records =
+                    parseSeason(
+                        year: yearInfo.year,
+                        statsColumn: yearInfo.column,
+                        firstPlayerRow: firstPlayerRow,
+                        rows: rows
+                    )
+
+                // Ignore empty future placeholders
+                guard !records.isEmpty else {
+                    continue
+                }
+
+                resultsByYear[
+                    yearInfo.year
+                ] = records
             }
         }
 
+
         let seasons =
-            seasonResults.map {
-                FantasyActualSeason(
-                    year: $0.key,
-                    players: $0.value
-                )
-            }
-            .sorted {
-                $0.year > $1.year
-            }
+            resultsByYear
+                .map { year, players in
+
+                    FantasyActualSeason(
+                        year: year,
+                        players: players
+                    )
+                }
+                .sorted {
+                    $0.year > $1.year
+                }
+
 
         return FantasyWinLossData(
             seasons: seasons
@@ -67,35 +73,85 @@ struct FantasyWinLossParser {
     }
 }
 
+
+// MARK: - Private Helpers
+
 private extension FantasyWinLossParser {
 
+    /*
+     In this spreadsheet the player names
+     always live in column B.
+
+     Swift array index:
+     A = 0
+     B = 1
+    */
+
+    static let playerColumn = 1
+
+
     static func findYearColumns(
-        in row: [String]
+        in yearRow: [String],
+        headerRow: [String]
     ) -> [(year: Int, column: Int)] {
 
         var results:
             [(year: Int, column: Int)] = []
 
         for (
-            index,
+            column,
             cell
-        ) in row.enumerated() {
+        ) in yearRow.enumerated() {
 
-            let text =
-                clean(cell)
+            guard
+                let year =
+                    Int(clean(cell)),
 
-            if let year =
-                    Int(text),
-               year >= 2000,
-               year <= 2100 {
+                year >= 2000,
+                year <= 2100
 
-                results.append(
-                    (
-                        year: year,
-                        column: index
+            else {
+                continue
+            }
+
+
+            // A real fantasy season table must have:
+            //
+            // W | L | Pts
+            //
+            // immediately underneath the year.
+
+            guard
+                value(
+                    headerRow,
+                    column
+                )
+                .uppercased() == "W",
+
+                value(
+                    headerRow,
+                    column + 1
+                )
+                .uppercased() == "L",
+
+                isPointsHeader(
+                    value(
+                        headerRow,
+                        column + 2
                     )
                 )
+
+            else {
+                continue
             }
+
+
+            results.append(
+                (
+                    year: year,
+                    column: column
+                )
+            )
         }
 
         return results
@@ -104,117 +160,158 @@ private extension FantasyWinLossParser {
 
     static func parseSeason(
         year: Int,
-        startColumn: Int,
-        firstPlayerIndex: Int,
-        rows: [[String]],
-        results:
-            inout [Int: [FantasyActualRecord]]
-    ) {
+        statsColumn: Int,
+        firstPlayerRow: Int,
+        rows: [[String]]
+    ) -> [FantasyActualRecord] {
 
         var records:
             [FantasyActualRecord] = []
 
         var rowIndex =
-            firstPlayerIndex
+            firstPlayerRow
+
 
         while rowIndex < rows.count {
 
             let row =
                 rows[rowIndex]
 
-            // Player name is one column
-            // before the first W column.
-            let nameColumn =
-                startColumn - 1
 
-            let rawName =
+            // IMPORTANT:
+            //
+            // Player names always come from
+            // column B, regardless of whether
+            // we're reading 2016, 2017, 2018,
+            // 2019, etc.
+
+            let rawPlayer =
                 value(
                     row,
-                    nameColumn
+                    playerColumn
                 )
 
-            guard !rawName.isEmpty else {
+
+            // Once column B becomes blank,
+            // this season block is finished.
+
+            if rawPlayer.isEmpty {
                 break
             }
+
 
             let wins =
                 integer(
                     value(
                         row,
-                        startColumn
+                        statsColumn
                     )
                 )
+
 
             let losses =
                 integer(
                     value(
                         row,
-                        startColumn + 1
+                        statsColumn + 1
                     )
                 )
+
 
             let points =
                 double(
                     value(
                         row,
-                        startColumn + 2
+                        statsColumn + 2
                     )
                 )
 
-            records.append(
-                FantasyActualRecord(
-                    year: year,
 
-                    player:
-                        ManagerNameNormalizer
-                            .normalize(
-                                rawName
-                            ),
+            /*
+             2026 and 2027 already exist as
+             blank templates in the workbook.
 
-                    wins: wins,
-                    losses: losses,
-                    points: points
+             Don't create records from them.
+            */
+
+            let hasData =
+                wins > 0 ||
+                losses > 0 ||
+                points > 0
+
+
+            if hasData {
+
+                records.append(
+                    FantasyActualRecord(
+                        year: year,
+
+                        player:
+                            ManagerNameNormalizer
+                                .normalize(
+                                    rawPlayer
+                                ),
+
+                        wins: wins,
+
+                        losses: losses,
+
+                        points: points
+                    )
                 )
-            )
+            }
+
 
             rowIndex += 1
         }
 
-        // Don't add future empty seasons.
-        if records.contains(
-            where: {
-                $0.wins > 0 ||
-                $0.losses > 0 ||
-                $0.points > 0
-            }
-        ) {
 
-            results[year] = records
-        }
+        return records
+    }
+
+
+    static func isPointsHeader(
+        _ text: String
+    ) -> Bool {
+
+        let header =
+            clean(text)
+                .lowercased()
+
+        return
+            header == "pts" ||
+            header == "points"
     }
 
 
     static func clean(
-        _ value: String
+        _ text: String
     ) -> String {
 
-        value.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
+        text
+            .trimmingCharacters(
+                in:
+                    .whitespacesAndNewlines
+            )
     }
 
 
     static func value(
         _ row: [String],
-        _ index: Int
+        _ column: Int
     ) -> String {
 
-        guard index >= 0,
-              index < row.count else {
+        guard
+            column >= 0,
+            column < row.count
+
+        else {
             return ""
         }
 
-        return clean(row[index])
+        return clean(
+            row[column]
+        )
     }
 
 
@@ -222,11 +319,22 @@ private extension FantasyWinLossParser {
         _ text: String
     ) -> Int {
 
-        if let value = Int(text) {
+        let cleaned =
+            text
+                .replacingOccurrences(
+                    of: ",",
+                    with: ""
+                )
+
+        if let value =
+            Int(cleaned) {
+
             return value
         }
 
-        if let value = Double(text) {
+        if let value =
+            Double(cleaned) {
+
             return Int(value)
         }
 
@@ -239,10 +347,15 @@ private extension FantasyWinLossParser {
     ) -> Double {
 
         let cleaned =
-            text.replacingOccurrences(
-                of: ",",
-                with: ""
-            )
+            text
+                .replacingOccurrences(
+                    of: ",",
+                    with: ""
+                )
+                .replacingOccurrences(
+                    of: "$",
+                    with: ""
+                )
 
         return Double(cleaned) ?? 0
     }

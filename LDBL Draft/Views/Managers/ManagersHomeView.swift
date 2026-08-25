@@ -28,8 +28,7 @@ struct ManagersHomeView: View {
                             "exclamationmark.triangle",
                         description:
                             Text(
-                                leagueData
-                                    .errorMessage
+                                leagueData.errorMessage
                             )
                     )
 

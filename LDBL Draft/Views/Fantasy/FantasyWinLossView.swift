@@ -1,30 +1,23 @@
-//
-//  FantasyWinLossView.swift
-//  LDBL Draft
-//
-//  Created by Brennan Dumm on 8/16/26.
-//
-
 import SwiftUI
 
 struct FantasyWinLossView: View {
 
-    @StateObject private var viewModel =
-        FantasyWinLossViewModel()
+    @EnvironmentObject var leagueData:
+        LeagueDataStore
 
     var body: some View {
 
         Group {
 
-            if viewModel.isLoading &&
-                viewModel.data == nil {
+            if leagueData.isLoading &&
+                leagueData.fantasyWinLoss == nil {
 
                 ProgressView(
                     "Loading Records..."
                 )
 
             } else if let data =
-                        viewModel.data {
+                        leagueData.fantasyWinLoss {
 
                 List {
 
@@ -37,7 +30,10 @@ struct FantasyWinLossView: View {
                             ForEach(
                                 season.players
                                     .sorted {
-                                        if $0.wins == $1.wins {
+
+                                        if $0.wins ==
+                                            $1.wins {
+
                                             return $0.points >
                                                 $1.points
                                         }
@@ -50,15 +46,20 @@ struct FantasyWinLossView: View {
                                 HStack {
 
                                     VStack(
-                                        alignment: .leading
+                                        alignment: .leading,
+                                        spacing: 3
                                     ) {
 
                                         Text(
-                                            player.player
+                                            ManagerNameNormalizer
+                                                .normalize(
+                                                    player.player
+                                                )
                                         )
                                         .fontWeight(
                                             .semibold
                                         )
+
 
                                         Text(
                                             "\(player.points, specifier: "%.1f") pts"
@@ -69,12 +70,16 @@ struct FantasyWinLossView: View {
                                         )
                                     }
 
+
                                     Spacer()
+
 
                                     Text(
                                         "\(player.wins)-\(player.losses)"
                                     )
-                                    .fontWeight(.bold)
+                                    .fontWeight(
+                                        .bold
+                                    )
                                 }
                             }
 
@@ -93,20 +98,18 @@ struct FantasyWinLossView: View {
             } else {
 
                 ContentUnavailableView(
-                    "Unable to Load Records",
+                    "No Records Available",
                     systemImage:
-                        "exclamationmark.triangle"
+                        "chart.bar"
                 )
             }
         }
         .navigationTitle(
             "Win-Loss Records"
         )
-        .task {
-            await viewModel.load()
-        }
         .refreshable {
-            await viewModel.load()
+
+            await leagueData.refresh()
         }
     }
 }

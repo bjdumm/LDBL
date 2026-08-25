@@ -9,22 +9,22 @@ import SwiftUI
 
 struct GamesAndRulesView: View {
 
-    @StateObject private var viewModel =
-        GamesAndRulesViewModel()
+    @EnvironmentObject var leagueData:
+        LeagueDataStore
 
     var body: some View {
 
         Group {
 
-            if viewModel.isLoading &&
-                viewModel.data == nil {
+            if leagueData.isLoading &&
+                leagueData.gamesAndRules == nil {
 
                 ProgressView(
                     "Loading Rules..."
                 )
 
             } else if let data =
-                        viewModel.data {
+                        leagueData.gamesAndRules {
 
                 List {
 
@@ -32,27 +32,36 @@ struct GamesAndRulesView: View {
 
                         Section {
 
-                            Text(data.eventDate)
-                                .font(.headline)
+                            Text(
+                                data.eventDate
+                            )
+                            .font(.headline)
                         }
                     }
 
 
-                    Section("General Rules") {
+                    if !data.generalRules.isEmpty {
 
-                        ForEach(
-                            data.generalRules,
-                            id: \.self
-                        ) { rule in
+                        Section(
+                            "General Rules"
+                        ) {
 
-                            Text(rule)
+                            ForEach(
+                                data.generalRules,
+                                id: \.self
+                            ) { rule in
+
+                                Text(rule)
+                            }
                         }
                     }
 
 
                     Section("Games") {
 
-                        ForEach(data.games) { game in
+                        ForEach(
+                            data.games
+                        ) { game in
 
                             NavigationLink {
 
@@ -63,7 +72,8 @@ struct GamesAndRulesView: View {
                             } label: {
 
                                 VStack(
-                                    alignment: .leading
+                                    alignment: .leading,
+                                    spacing: 4
                                 ) {
 
                                     Text(
@@ -73,12 +83,14 @@ struct GamesAndRulesView: View {
                                         .semibold
                                     )
 
+
                                     if !game
                                         .drinkingRequirement
                                         .isEmpty {
 
                                         Text(
-                                            game.drinkingRequirement
+                                            game
+                                                .drinkingRequirement
                                         )
                                         .font(.caption)
                                         .foregroundStyle(
@@ -91,7 +103,9 @@ struct GamesAndRulesView: View {
                     }
 
 
-                    if !data.showcaseNotes.isEmpty {
+                    if !data
+                        .showcaseNotes
+                        .isEmpty {
 
                         Section(
                             "Showcase Event"
@@ -111,18 +125,18 @@ struct GamesAndRulesView: View {
             } else {
 
                 ContentUnavailableView(
-                    "Unable to Load Rules",
+                    "No Rules Available",
                     systemImage:
-                        "exclamationmark.triangle"
+                        "book.closed"
                 )
             }
         }
-        .navigationTitle("Games & Rules")
-        .task {
-            await viewModel.load()
-        }
+        .navigationTitle(
+            "Games & Rules"
+        )
         .refreshable {
-            await viewModel.load()
+
+            await leagueData.refresh()
         }
     }
 }

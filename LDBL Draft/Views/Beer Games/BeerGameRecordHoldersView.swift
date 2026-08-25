@@ -1,34 +1,33 @@
-//
-//  BeerGameRecordHoldersView.swift
-//  LDBL Draft
-//
-//  Created by Brennan Dumm on 8/15/26.
-//
-
 import SwiftUI
 
 struct BeerGameRecordHoldersView: View {
 
-    @StateObject private var viewModel =
-        BeerGameRecordHoldersViewModel()
+    @EnvironmentObject var leagueData:
+        LeagueDataStore
 
     var body: some View {
 
         Group {
 
-            if viewModel.isLoading &&
-                viewModel.data == nil {
+            if leagueData.isLoading &&
+                leagueData
+                    .beerGameRecordHolders == nil {
 
                 ProgressView(
                     "Loading Records..."
                 )
 
             } else if let data =
-                        viewModel.data {
+                        leagueData
+                            .beerGameRecordHolders {
 
                 List {
 
-                    Section("Event Records") {
+                    // MARK: - Event Records
+
+                    Section(
+                        "Event Records"
+                    ) {
 
                         ForEach(
                             data.eventRecords
@@ -41,23 +40,38 @@ struct BeerGameRecordHoldersView: View {
 
                                 HStack {
 
-                                    Text(record.event)
-                                        .fontWeight(
-                                            .semibold
-                                        )
+                                    Text(
+                                        record.event
+                                    )
+                                    .fontWeight(
+                                        .semibold
+                                    )
 
                                     Spacer()
 
-                                    Text(record.score)
+                                    Text(
+                                        record.score
+                                    )
                                 }
+
 
                                 HStack {
 
-                                    Text(record.player)
+                                    Text(
+                                        ManagerNameNormalizer
+                                            .normalize(
+                                                record.player
+                                            )
+                                    )
 
                                     Spacer()
 
-                                    Text(verbatim: "\(record.season)")   // Text("\(record.season)")
+                                    Text(
+                                        verbatim:
+                                            String(
+                                                record.season
+                                            )
+                                    )
                                 }
                                 .font(.caption)
                                 .foregroundStyle(
@@ -71,6 +85,8 @@ struct BeerGameRecordHoldersView: View {
                         }
                     }
 
+
+                    // MARK: - Championships
 
                     Section(
                         "Beer Game Championships"
@@ -87,7 +103,10 @@ struct BeerGameRecordHoldersView: View {
                             HStack {
 
                                 Text(
-                                    champion.player
+                                    ManagerNameNormalizer
+                                        .normalize(
+                                            champion.player
+                                        )
                                 )
 
                                 Spacer()
@@ -95,21 +114,30 @@ struct BeerGameRecordHoldersView: View {
                                 Text(
                                     "\(champion.championships)"
                                 )
-                                .fontWeight(.bold)
+                                .fontWeight(
+                                    .bold
+                                )
                             }
                         }
                     }
-                    
-                    Section("Average Beer Game Points") {
 
-                        let rankings =
-                            data.accumulatedPoints.sorted {
-                                $0.averagePoints >
-                                $1.averagePoints
-                            }
+
+                    // MARK: - Average Points
+
+                    Section(
+                        "Average Beer Game Points"
+                    ) {
 
                         ForEach(
-                            Array(rankings.enumerated()),
+                            Array(
+                                data
+                                    .accumulatedPoints
+                                    .sorted {
+                                        $0.averagePoints >
+                                        $1.averagePoints
+                                    }
+                                    .enumerated()
+                            ),
                             id: \.element.id
                         ) { index, player in
 
@@ -123,44 +151,75 @@ struct BeerGameRecordHoldersView: View {
 
                                 HStack {
 
-                                    Text("#\(index + 1)")
-                                        .fontWeight(.bold)
-                                        .frame(width: 35)
+                                    Text(
+                                        "#\(index + 1)"
+                                    )
+                                    .fontWeight(
+                                        .bold
+                                    )
+                                    .frame(
+                                        width: 35
+                                    )
 
-                                    Text(player.player)
+
+                                    Text(
+                                        ManagerNameNormalizer
+                                            .normalize(
+                                                player.player
+                                            )
+                                    )
+
 
                                     Spacer()
 
+
                                     Text(
-                                        player.averagePoints,
-                                        format: .number.precision(
-                                            .fractionLength(1)
-                                        )
+                                        verbatim:
+                                            formattedAverage(
+                                                player.averagePoints
+                                            )
                                     )
-                                    .fontWeight(.semibold)
+                                    .fontWeight(
+                                        .semibold
+                                    )
                                 }
                             }
                         }
                     }
-                    
-                    
                 }
 
             } else {
 
                 ContentUnavailableView(
-                    "Unable to Load Records",
+                    "No Records Available",
                     systemImage:
-                        "exclamationmark.triangle"
+                        "trophy"
                 )
             }
         }
-        .navigationTitle("Record Holders")
-        .task {
-            await viewModel.load()
-        }
+        .navigationTitle(
+            "Record Holders"
+        )
         .refreshable {
-            await viewModel.load()
+
+            await leagueData.refresh()
         }
+    }
+
+
+    // MARK: - Number Formatting
+
+    private func formattedAverage(
+        _ value: Double
+    ) -> String {
+
+        String(
+            format: "%.1f",
+            locale: Locale(
+                identifier:
+                    "en_US_POSIX"
+            ),
+            value
+        )
     }
 }

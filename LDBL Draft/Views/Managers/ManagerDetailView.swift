@@ -1,10 +1,3 @@
-//
-//  ManagerDetailView.swift
-//  LDBL Draft
-//
-//  Created by Brennan Dumm on 8/16/26.
-//
-
 import SwiftUI
 
 struct ManagerDetailView: View {
@@ -15,38 +8,269 @@ struct ManagerDetailView: View {
 
         List {
 
+            fantasyCareerSection
 
-                fantasyCareerSection
+            seasonHistorySection
 
-                seasonHistorySection
+            beerGamesCareerSection
 
-                beerGamesCareerSection
+            beerGamesHistorySection
 
-                beerGamesHistorySection
+            earningsSection
 
-                earningsSection
-
-                yearlyEarningsSection
+            yearlyEarningsSection
         }
-        .navigationTitle(manager.name)
+        .navigationTitle(
+            manager.name
+        )
         .navigationBarTitleDisplayMode(
             .inline
         )
     }
 }
 
+
+// MARK: - Sections
+
 private extension ManagerDetailView {
-    
-    var beerGamesHistorySection: some View {
 
-        Section("Beer Games History") {
+    var fantasyCareerSection:
+        some View {
 
-            if manager.beerGameResults.isEmpty {
+        Section("Fantasy Career") {
+
+            statRow(
+                "Seasons",
+                "\(manager.seasonsPlayed)"
+            )
+
+
+            statRow(
+                "Actual Record",
+                "\(manager.actualCareerWins)-\(manager.actualCareerLosses)"
+            )
+
+
+            statRow(
+                "All-Play Record",
+                "\(manager.allPlayCareerWins)-\(manager.allPlayCareerLosses)"
+            )
+
+
+            HStack {
+
+                Text("Actual Win %")
+
+                Spacer()
+
+                Text(
+                    manager
+                        .actualCareerWinPercentage,
+                    format:
+                        .percent.precision(
+                            .fractionLength(1)
+                        )
+                )
+                .fontWeight(.semibold)
+            }
+
+
+            HStack {
+
+                Text("All-Play Win %")
+
+                Spacer()
+
+                Text(
+                    manager
+                        .allPlayCareerWinPercentage,
+                    format:
+                        .percent.precision(
+                            .fractionLength(1)
+                        )
+                )
+                .fontWeight(.semibold)
+            }
+        }
+    }
+
+
+    var seasonHistorySection:
+        some View {
+
+        Section(
+            "Fantasy Season History"
+        ) {
+
+            ForEach(
+                manager.seasons
+            ) { season in
+
+                let actual =
+                    manager
+                        .actualFantasyRecords
+                        .first {
+                            $0.year ==
+                            season.year
+                        }
+
+
+                VStack(
+                    alignment: .leading,
+                    spacing: 7
+                ) {
+
+                    Text(
+                        verbatim:
+                            String(
+                                season.year
+                            )
+                    )
+                    .font(.headline)
+
+
+                    HStack {
+
+                        Text("Actual")
+
+                        Spacer()
+
+                        if let actual {
+
+                            Text(
+                                "\(actual.wins)-\(actual.losses)"
+                            )
+                            .fontWeight(
+                                .semibold
+                            )
+
+                        } else {
+
+                            Text("-")
+                                .foregroundStyle(
+                                    .secondary
+                                )
+                        }
+                    }
+
+
+                    HStack {
+
+                        Text("All-Play")
+
+                        Spacer()
+
+                        Text(
+                            "\(season.wins)-\(season.losses)"
+                        )
+                        .fontWeight(
+                            .semibold
+                        )
+                    }
+
+
+                    if let actual {
+
+                        HStack {
+
+                            Text("Points")
+
+                            Spacer()
+
+                            Text(
+                                actual.points,
+                                format:
+                                    .number
+                                    .precision(
+                                        .fractionLength(
+                                            1
+                                        )
+                                    )
+                            )
+                        }
+                    }
+                }
+                .padding(
+                    .vertical,
+                    3
+                )
+            }
+        }
+    }
+
+
+    var beerGamesCareerSection:
+        some View {
+
+        Section(
+            "Beer Games Career"
+        ) {
+
+            statRow(
+                "Seasons",
+                "\(manager.beerGameSeasonsPlayed)"
+            )
+
+
+            statRow(
+                "Total Points",
+                "\(manager.beerGameTotalPoints)"
+            )
+
+
+            HStack {
+
+                Text("Average Points")
+
+                Spacer()
+
+                Text(
+                    manager
+                        .averageBeerGamePoints,
+                    format:
+                        .number.precision(
+                            .fractionLength(1)
+                        )
+                )
+                .fontWeight(.semibold)
+            }
+
+
+            if let bestFinish =
+                manager.bestBeerGameFinish {
+
+                statRow(
+                    "Best Finish",
+                    "#\(bestFinish)"
+                )
+            }
+
+
+            statRow(
+                "Championships",
+                "\(manager.beerGameChampionships)"
+            )
+        }
+    }
+
+
+    var beerGamesHistorySection:
+        some View {
+
+        Section(
+            "Beer Games History"
+        ) {
+
+            if manager
+                .beerGameResults
+                .isEmpty {
 
                 Text(
                     "No Beer Games history available."
                 )
-                .foregroundStyle(.secondary)
+                .foregroundStyle(
+                    .secondary
+                )
 
             } else {
 
@@ -71,12 +295,17 @@ private extension ManagerDetailView {
                                     )
                             )
 
+
                             Spacer()
+
 
                             Text(
                                 "#\(result.place)"
                             )
-                            .fontWeight(.semibold)
+                            .fontWeight(
+                                .semibold
+                            )
+
 
                             Text(
                                 "\(result.totalPoints) pts"
@@ -90,220 +319,26 @@ private extension ManagerDetailView {
             }
         }
     }
-    
-    var beerGamesCareerSection: some View {
-
-        Section("Beer Games Career") {
-
-            statRow(
-                "Seasons",
-                "\(manager.beerGameSeasonsPlayed)"
-            )
-
-            statRow(
-                "Total Points",
-                "\(manager.beerGameTotalPoints)"
-            )
-
-            HStack {
-
-                Text("Average Points")
-
-                Spacer()
-
-                Text(
-                    manager.averageBeerGamePoints,
-                    format:
-                        .number.precision(
-                            .fractionLength(1)
-                        )
-                )
-                .fontWeight(.semibold)
-            }
-
-            if let bestFinish =
-                manager.bestBeerGameFinish {
-
-                statRow(
-                    "Best Finish",
-                    "#\(bestFinish)"
-                )
-            }
-
-            statRow(
-                "Championships",
-                "\(manager.beerGameChampionships)"
-            )
-        }
-    }
-
-    var fantasyCareerSection: some View {
-
-        Section("Fantasy Career") {
-
-            statRow(
-                "Seasons",
-                "\(manager.seasonsPlayed)"
-            )
-
-            HStack {
-
-                Text("Actual Record")
-
-                Spacer()
-
-                Text(
-                    "\(manager.actualCareerWins)-\(manager.actualCareerLosses)"
-                )
-                .fontWeight(.bold)
-            }
-
-            HStack {
-
-                Text("All-Play Record")
-
-                Spacer()
-
-                Text(
-                    "\(manager.allPlayCareerWins)-\(manager.allPlayCareerLosses)"
-                )
-                .fontWeight(.semibold)
-            }
-
-            HStack {
-
-                Text("Actual Win %")
-
-                Spacer()
-
-                Text(
-                    manager.actualCareerWinPercentage,
-                    format:
-                        .percent.precision(
-                            .fractionLength(1)
-                        )
-                )
-            }
-
-            HStack {
-
-                Text("All-Play Win %")
-
-                Spacer()
-
-                Text(
-                    manager.allPlayCareerWinPercentage,
-                    format:
-                        .percent.precision(
-                            .fractionLength(1)
-                        )
-                )
-            }
-        }
-    }
-
-    var seasonHistorySection: some View {
-
-        Section("Fantasy Season History") {
-
-            ForEach(
-                manager.seasons
-            ) { season in
-
-                let actual =
-                    manager.actualFantasyRecords
-                        .first {
-                            $0.year ==
-                            season.year
-                        }
-
-                VStack(
-                    alignment: .leading,
-                    spacing: 7
-                ) {
-
-                    Text(
-                        verbatim:
-                            String(
-                                season.year
-                            )
-                    )
-                    .font(.headline)
-
-                    HStack {
-
-                        Text("Actual")
-
-                        Spacer()
-
-                        if let actual {
-
-                            Text(
-                                "\(actual.wins)-\(actual.losses)"
-                            )
-                            .fontWeight(.semibold)
-
-                        } else {
-
-                            Text("-")
-                                .foregroundStyle(
-                                    .secondary
-                                )
-                        }
-                    }
-
-                    HStack {
-
-                        Text("All-Play")
-
-                        Spacer()
-
-                        Text(
-                            "\(season.wins)-\(season.losses)"
-                        )
-                        .fontWeight(.semibold)
-                    }
-
-                    if let actual {
-
-                        HStack {
-
-                            Text("Points")
-
-                            Spacer()
-
-                            Text(
-                                actual.points,
-                                format:
-                                    .number.precision(
-                                        .fractionLength(1)
-                                    )
-                            )
-                        }
-                    }
-                }
-                .padding(
-                    .vertical,
-                    3
-                )
-            }
-        }
-    }
 
 
-    var earningsSection: some View {
+    var earningsSection:
+        some View {
 
-        Section("Career Earnings") {
+        Section(
+            "Career Earnings"
+        ) {
 
             moneyRow(
                 "Winnings",
                 manager.totalWinnings
             )
 
+
             moneyRow(
                 "Fees",
                 manager.totalFees
             )
+
 
             moneyRow(
                 "Return",
@@ -337,7 +372,9 @@ private extension ManagerDetailView {
                                 )
                         )
 
+
                         Spacer()
+
 
                         if let amount =
                             season.amount {
@@ -382,7 +419,9 @@ private extension ManagerDetailView {
             Spacer()
 
             Text(value)
-                .fontWeight(.semibold)
+                .fontWeight(
+                    .semibold
+                )
         }
     }
 
@@ -408,7 +447,9 @@ private extension ManagerDetailView {
                         .fractionLength(0)
                     )
             )
-            .fontWeight(.semibold)
+            .fontWeight(
+                .semibold
+            )
         }
     }
 }

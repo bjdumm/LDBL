@@ -9,38 +9,24 @@ import SwiftUI
 
 struct SeasonDetailsView: View {
 
-    @StateObject private var viewModel =
-        SeasonDetailsViewModel()
+    @EnvironmentObject var leagueData:
+        LeagueDataStore
 
     var body: some View {
 
         Group {
 
-            if viewModel.isLoading &&
-                viewModel.seasons.isEmpty {
+            if leagueData.isLoading &&
+                leagueData.seasonDetails.isEmpty {
 
                 ProgressView(
                     "Loading Seasons..."
                 )
 
-            } else if
-                !viewModel.errorMessage.isEmpty &&
-                viewModel.seasons.isEmpty {
-
-                ContentUnavailableView(
-                    "Unable to Load Season Details",
-                    systemImage:
-                        "exclamationmark.triangle",
-                    description:
-                        Text(
-                            viewModel.errorMessage
-                        )
-                )
-
             } else {
 
                 List(
-                    viewModel.seasons
+                    leagueData.seasonDetails
                 ) { season in
 
                     NavigationLink {
@@ -61,7 +47,9 @@ struct SeasonDetailsView: View {
                             )
                             .font(.headline)
 
+
                             Spacer()
+
 
                             Text(
                                 "\(season.players.count) players"
@@ -74,12 +62,12 @@ struct SeasonDetailsView: View {
                 }
             }
         }
-        .navigationTitle("Season Details")
-        .task {
-            await viewModel.load()
-        }
+        .navigationTitle(
+            "Season Details"
+        )
         .refreshable {
-            await viewModel.load()
+
+            await leagueData.refresh()
         }
     }
 }

@@ -22,6 +22,7 @@ struct LDBLApp: App {
                     leagueData
                 )
                 .task {
+
                     await leagueData
                         .loadIfNeeded()
                 }

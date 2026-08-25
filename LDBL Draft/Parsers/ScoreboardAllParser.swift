@@ -1,10 +1,3 @@
-//
-//  ScoreboardAllParser.swift
-//  LDBL Draft
-//
-//  Created by Brennan Dumm on 8/15/26.
-//
-
 import Foundation
 
 struct ScoreboardAllParser {
@@ -21,15 +14,21 @@ struct ScoreboardAllParser {
 
         for (position, startIndex) in yearRows.enumerated() {
 
-            guard let year = Int(value(rows[startIndex], 0)) else {
+            guard let year =
+                    Int(value(rows[startIndex], 0))
+            else {
                 continue
             }
 
             let endIndex: Int
 
             if position + 1 < yearRows.count {
-                endIndex = yearRows[position + 1]
+
+                endIndex =
+                    yearRows[position + 1]
+
             } else {
+
                 endIndex = rows.count
             }
 
@@ -41,7 +40,10 @@ struct ScoreboardAllParser {
                     rows: rows
                 )
 
-            seasons.append(season)
+            // Ignore empty/preformatted future seasons.
+            if !season.entries.isEmpty {
+                seasons.append(season)
+            }
         }
 
         return seasons.sorted {
@@ -50,7 +52,18 @@ struct ScoreboardAllParser {
     }
 }
 
+
+// MARK: - Private Helpers
+
 private extension ScoreboardAllParser {
+
+    struct UnrankedEntry {
+
+        let player: String
+        let events: [ScoreboardEventResult]
+        let totalPoints: Int
+    }
+
 
     static func parseSeason(
         year: Int,
@@ -67,36 +80,43 @@ private extension ScoreboardAllParser {
                 in: eventHeaderRow
             )
 
-        var entries: [ScoreboardEntry] = []
+        var unrankedEntries:
+            [UnrankedEntry] = []
 
-        // First row = event names
-        // Second row = Time/Award/etc.
-        let firstPlayerRow = startIndex + 2
+        let firstPlayerRow =
+            startIndex + 2
 
         guard firstPlayerRow < endIndex else {
+
             return ScoreboardSeason(
                 year: year,
                 entries: []
             )
         }
 
+
+        // MARK: - Read players
+
         for index in firstPlayerRow..<endIndex {
 
             let row = rows[index]
 
-            let player = value(row, 1)
+            let rawPlayer =
+                value(row, 1)
 
-            guard !player.isEmpty else {
+            guard !rawPlayer.isEmpty else {
                 continue
             }
 
-            guard let place =
-                    Int(value(row, 0))
-            else {
-                continue
-            }
+            let player =
+                ManagerNameNormalizer
+                    .normalize(rawPlayer)
 
-            var events: [ScoreboardEventResult] = []
+            var events:
+                [ScoreboardEventResult] = []
+
+
+            // MARK: Event Results
 
             for eventColumn in eventColumns {
 
@@ -133,8 +153,9 @@ private extension ScoreboardAllParser {
                 )
             }
 
-            // TOTAL is column Y in the current sheet.
-            // Searching makes us less dependent on that position.
+
+            // MARK: Total Points
+
             let total =
                 findTotal(
                     row: row,
@@ -148,10 +169,23 @@ private extension ScoreboardAllParser {
                     )
                 )
 
-            entries.append(
-                ScoreboardEntry(
-                    year: year,
-                    place: place,
+
+            // A future season may already have
+            // player names but no actual results.
+
+            let hasResults =
+                events.contains {
+                    !$0.result.isEmpty ||
+                    $0.points > 0
+                }
+
+            guard hasResults || total > 0 else {
+                continue
+            }
+
+
+            unrankedEntries.append(
+                UnrankedEntry(
                     player: player,
                     events: events,
                     totalPoints: total
@@ -159,14 +193,63 @@ private extension ScoreboardAllParser {
             )
         }
 
+
+        // MARK: - Rank by Points
+
+        let sortedEntries =
+            unrankedEntries.sorted {
+
+                if $0.totalPoints ==
+                    $1.totalPoints {
+
+                    // Stable fallback for ties.
+                    return $0.player
+                        .localizedCaseInsensitiveCompare(
+                            $1.player
+                        ) == .orderedAscending
+                }
+
+                return $0.totalPoints >
+                    $1.totalPoints
+            }
+
+
+        var rankedEntries:
+            [ScoreboardEntry] = []
+
+
+        for (
+            index,
+            entry
+        ) in sortedEntries.enumerated() {
+
+            rankedEntries.append(
+                ScoreboardEntry(
+                    year: year,
+
+                    // THIS is the real finish.
+                    place: index + 1,
+
+                    player: entry.player,
+
+                    events:
+                        entry.events,
+
+                    totalPoints:
+                        entry.totalPoints
+                )
+            )
+        }
+
+
         return ScoreboardSeason(
             year: year,
-            entries: entries.sorted {
-                $0.place < $1.place
-            }
+            entries: rankedEntries
         )
     }
 
+
+    // MARK: - Event Columns
 
     static func findEventColumns(
         in headerRow: [String]
@@ -174,10 +257,18 @@ private extension ScoreboardAllParser {
 
         var columns: [Int] = []
 
-        // Your event/result data begins at column C.
+        // Event data starts in column C
+        // and every event occupies two columns:
+        //
+        // Result | Award Points
+
         var column = 2
 
-        while column < min(headerRow.count, 24) {
+        while column <
+                min(
+                    headerRow.count,
+                    24
+                ) {
 
             if !value(
                 headerRow,
@@ -194,6 +285,8 @@ private extension ScoreboardAllParser {
     }
 
 
+    // MARK: - Find Total
+
     static func findTotal(
         row: [String],
         headerRows: [[String]]
@@ -204,10 +297,14 @@ private extension ScoreboardAllParser {
             if let totalColumn =
                 headerRow.firstIndex(
                     where: {
-                        $0.trimmingCharacters(
-                            in: .whitespacesAndNewlines
-                        )
-                        .uppercased() == "TOTAL"
+
+                        $0
+                            .trimmingCharacters(
+                                in:
+                                    .whitespacesAndNewlines
+                            )
+                            .uppercased()
+                            == "TOTAL"
                     }
                 ) {
 
@@ -224,6 +321,8 @@ private extension ScoreboardAllParser {
     }
 
 
+    // MARK: - Detect Year Rows
+
     static func isYearRow(
         _ row: [String]
     ) -> Bool {
@@ -239,32 +338,49 @@ private extension ScoreboardAllParser {
     }
 
 
+    // MARK: - Safe Cell Value
+
     static func value(
         _ row: [String],
         _ index: Int
     ) -> String {
 
         guard index >= 0,
-              index < row.count else {
+              index < row.count
+        else {
             return ""
         }
 
         return row[index]
             .trimmingCharacters(
-                in: .whitespacesAndNewlines
+                in:
+                    .whitespacesAndNewlines
             )
     }
 
 
+    // MARK: - Integer Conversion
+
     static func integer(
-        _ value: String
+        _ text: String
     ) -> Int {
 
-        if let number = Int(value) {
+        let cleaned =
+            text
+                .replacingOccurrences(
+                    of: ",",
+                    with: ""
+                )
+
+        if let number =
+            Int(cleaned) {
+
             return number
         }
 
-        if let number = Double(value) {
+        if let number =
+            Double(cleaned) {
+
             return Int(number)
         }
 

@@ -56,7 +56,9 @@ struct BeerGamesHomeView: View {
                     )
                 }
             }
-            .navigationTitle("Beer Games")
+            .navigationTitle(
+                "Beer Games"
+            )
         }
     }
 }

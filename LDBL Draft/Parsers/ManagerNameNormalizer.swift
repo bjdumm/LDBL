@@ -1,12 +1,15 @@
 import Foundation
 
-
 struct ManagerNameNormalizer {
 
-    static func normalize(_ name: String) -> String {
+    static func normalize(
+        _ name: String
+    ) -> String {
 
-        let cleaned = name
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleaned =
+            name.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
 
         switch cleaned.lowercased() {
 
