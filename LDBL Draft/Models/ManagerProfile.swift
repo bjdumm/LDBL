@@ -7,13 +7,15 @@
 
 import Foundation
 
+
 struct ManagerProfile: Identifiable {
 
     var id: String { name }
 
     let name: String
 
-    let seasons: [ManagerSeasonStats]
+    let seasons:
+        [ManagerSeasonStats]
 
     let earnings:
         AccumulatedEarningsPlayer?
@@ -23,6 +25,9 @@ struct ManagerProfile: Identifiable {
 
     let actualFantasyRecords:
         [FantasyActualRecord]
+
+    let fantasyFinishes:
+        [ManagerFantasyFinish]
 
 
     // MARK: - All-Play Fantasy
@@ -100,6 +105,26 @@ struct ManagerProfile: Identifiable {
     }
 
 
+    // MARK: - Fantasy Finishes
+
+    var fantasyChampionships: Int {
+
+        fantasyFinishes.filter {
+            $0.place == 1
+        }.count
+    }
+
+
+    func fantasyFinish(
+        for year: Int
+    ) -> ManagerFantasyFinish? {
+
+        fantasyFinishes.first {
+            $0.year == year
+        }
+    }
+
+
     // MARK: - Earnings
 
     var totalWinnings: Double {
@@ -164,6 +189,8 @@ struct ManagerProfile: Identifiable {
 }
 
 
+// MARK: - Manager Season Stats
+
 struct ManagerSeasonStats:
     Identifiable {
 
@@ -192,4 +219,19 @@ struct ManagerSeasonStats:
         return Double(wins)
             / Double(games)
     }
+}
+
+
+// MARK: - Manager Fantasy Finish
+
+struct ManagerFantasyFinish:
+    Identifiable {
+
+    var id: String {
+        "\(year)-\(place)"
+    }
+
+    let year: Int
+
+    let place: Int
 }

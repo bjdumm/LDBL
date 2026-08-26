@@ -84,16 +84,9 @@ struct AccumulatedEarningsView: View {
 
 
                                     Text(
-                                        player.returnAmount,
-                                        format:
-                                            .currency(
-                                                code:
-                                                    "USD"
-                                            )
-                                            .precision(
-                                                .fractionLength(
-                                                    0
-                                                )
+                                        verbatim:
+                                            AppNumberFormat.currency(
+                                                player.returnAmount
                                             )
                                     )
                                     .fontWeight(

@@ -6,8 +6,42 @@ struct FantasyWinLossParser {
         rows: [[String]]
     ) -> FantasyWinLossData {
 
+        let seasons =
+            parseSeasons(rows)
+
+        let careerRecords =
+            parseCareerRecords(rows)
+
+        let yearlyFinishes =
+            parseYearlyFinishes(rows)
+
+        let careerTitles =
+            parseCareerTitles(
+                rows,
+                yearlyFinishes: yearlyFinishes
+            )
+
+        return FantasyWinLossData(
+            seasons: seasons,
+            careerRecords: careerRecords,
+            yearlyFinishes: yearlyFinishes,
+            careerTitles: careerTitles
+        )
+    }
+}
+
+
+// MARK: - Seasons
+
+private extension FantasyWinLossParser {
+
+    static func parseSeasons(
+        _ rows: [[String]]
+    ) -> [FantasyActualSeason] {
+
         var resultsByYear:
             [Int: [FantasyActualRecord]] = [:]
+
 
         for rowIndex in rows.indices {
 
@@ -15,8 +49,12 @@ struct FantasyWinLossParser {
                 continue
             }
 
-            let yearRow = rows[rowIndex]
-            let headerRow = rows[rowIndex + 1]
+            let yearRow =
+                rows[rowIndex]
+
+            let headerRow =
+                rows[rowIndex + 1]
+
 
             let yearColumns =
                 findYearColumns(
@@ -24,27 +62,38 @@ struct FantasyWinLossParser {
                     headerRow: headerRow
                 )
 
+
             guard !yearColumns.isEmpty else {
                 continue
             }
 
+
             let firstPlayerRow =
                 rowIndex + 2
+
 
             for yearInfo in yearColumns {
 
                 let records =
                     parseSeason(
-                        year: yearInfo.year,
-                        statsColumn: yearInfo.column,
-                        firstPlayerRow: firstPlayerRow,
-                        rows: rows
+                        year:
+                            yearInfo.year,
+
+                        statsColumn:
+                            yearInfo.column,
+
+                        firstPlayerRow:
+                            firstPlayerRow,
+
+                        rows:
+                            rows
                     )
 
-                // Ignore empty future placeholders
+
                 guard !records.isEmpty else {
                     continue
                 }
+
 
                 resultsByYear[
                     yearInfo.year
@@ -53,39 +102,19 @@ struct FantasyWinLossParser {
         }
 
 
-        let seasons =
-            resultsByYear
-                .map { year, players in
+        return resultsByYear
+            .map { year, players in
 
-                    FantasyActualSeason(
-                        year: year,
-                        players: players
-                    )
-                }
-                .sorted {
-                    $0.year > $1.year
-                }
-
-
-        return FantasyWinLossData(
-            seasons: seasons
-        )
+                FantasyActualSeason(
+                    year: year,
+                    players: players
+                )
+            }
+            .sorted {
+                $0.year > $1.year
+            }
     }
-}
 
-
-// MARK: - Private Helpers
-
-private extension FantasyWinLossParser {
-
-    /*
-     In this spreadsheet the player names
-     always live in column B.
-
-     Swift array index:
-     A = 0
-     B = 1
-    */
 
     static let playerColumn = 1
 
@@ -97,6 +126,7 @@ private extension FantasyWinLossParser {
 
         var results:
             [(year: Int, column: Int)] = []
+
 
         for (
             column,
@@ -114,12 +144,6 @@ private extension FantasyWinLossParser {
                 continue
             }
 
-
-            // A real fantasy season table must have:
-            //
-            // W | L | Pts
-            //
-            // immediately underneath the year.
 
             guard
                 value(
@@ -154,6 +178,7 @@ private extension FantasyWinLossParser {
             )
         }
 
+
         return results
     }
 
@@ -168,6 +193,7 @@ private extension FantasyWinLossParser {
         var records:
             [FantasyActualRecord] = []
 
+
         var rowIndex =
             firstPlayerRow
 
@@ -178,22 +204,12 @@ private extension FantasyWinLossParser {
                 rows[rowIndex]
 
 
-            // IMPORTANT:
-            //
-            // Player names always come from
-            // column B, regardless of whether
-            // we're reading 2016, 2017, 2018,
-            // 2019, etc.
-
             let rawPlayer =
                 value(
                     row,
                     playerColumn
                 )
 
-
-            // Once column B becomes blank,
-            // this season block is finished.
 
             if rawPlayer.isEmpty {
                 break
@@ -226,13 +242,6 @@ private extension FantasyWinLossParser {
                     )
                 )
 
-
-            /*
-             2026 and 2027 already exist as
-             blank templates in the workbook.
-
-             Don't create records from them.
-            */
 
             let hasData =
                 wins > 0 ||
@@ -268,6 +277,477 @@ private extension FantasyWinLossParser {
 
         return records
     }
+}
+
+
+// MARK: - Career Records
+
+private extension FantasyWinLossParser {
+
+    static func parseCareerRecords(
+        _ rows: [[String]]
+    ) -> [FantasyCareerRecord] {
+
+        guard let headerRowIndex =
+                rows.firstIndex(
+                    where: { row in
+
+                        row.contains {
+                            clean($0) == "Win %"
+                        }
+                        &&
+                        row.contains {
+                            clean($0) == "PPG"
+                        }
+                    }
+                )
+        else {
+            return []
+        }
+
+
+        let headers =
+            rows[headerRowIndex]
+
+
+        guard
+            let winsColumn =
+                index(
+                    of: "W",
+                    in: headers,
+                    startingAt: 18
+                ),
+
+            let lossesColumn =
+                index(
+                    of: "L",
+                    in: headers,
+                    startingAt: winsColumn + 1
+                ),
+
+            let winPercentColumn =
+                index(
+                    of: "Win %",
+                    in: headers
+                ),
+
+            let ppgColumn =
+                index(
+                    of: "PPG",
+                    in: headers
+                )
+
+        else {
+            return []
+        }
+
+
+        let playerColumn =
+            winsColumn - 1
+
+
+        var results:
+            [FantasyCareerRecord] = []
+
+
+        for row in rows.dropFirst(
+            headerRowIndex + 1
+        ) {
+
+            let rawPlayer =
+                value(
+                    row,
+                    playerColumn
+                )
+
+
+            if rawPlayer.isEmpty {
+                break
+            }
+
+
+            results.append(
+                FantasyCareerRecord(
+                    player:
+                        ManagerNameNormalizer
+                            .normalize(
+                                rawPlayer
+                            ),
+
+                    wins:
+                        integer(
+                            value(
+                                row,
+                                winsColumn
+                            )
+                        ),
+
+                    losses:
+                        integer(
+                            value(
+                                row,
+                                lossesColumn
+                            )
+                        ),
+
+                    winPercentage:
+                        percentage(
+                            value(
+                                row,
+                                winPercentColumn
+                            )
+                        ),
+
+                    pointsPerGame:
+                        double(
+                            value(
+                                row,
+                                ppgColumn
+                            )
+                        )
+                )
+            )
+        }
+
+
+        return results.sorted {
+
+            if $0.winPercentage ==
+                $1.winPercentage {
+
+                return $0.wins >
+                    $1.wins
+            }
+
+            return $0.winPercentage >
+                $1.winPercentage
+        }
+    }
+}
+
+
+// MARK: - Yearly Finishes
+
+private extension FantasyWinLossParser {
+
+    static func parseYearlyFinishes(
+        _ rows: [[String]]
+    ) -> [FantasyYearlyFinish] {
+
+        guard let headerRowIndex =
+                rows.firstIndex(
+                    where: { row in
+
+                        row.contains {
+                            clean($0) == "Year"
+                        }
+                        &&
+                        row.contains {
+                            clean($0) == "1st"
+                        }
+                        &&
+                        row.contains {
+                            clean($0) == "2nd"
+                        }
+                        &&
+                        row.contains {
+                            clean($0) == "3rd"
+                        }
+                        &&
+                        row.contains {
+                            clean($0) == "Reg Champ"
+                        }
+                    }
+                )
+        else {
+            return []
+        }
+
+
+        let headers =
+            rows[headerRowIndex]
+
+
+        guard
+            let yearColumn =
+                index(
+                    of: "Year",
+                    in: headers
+                ),
+
+            let firstColumn =
+                index(
+                    of: "1st",
+                    in: headers
+                ),
+
+            let secondColumn =
+                index(
+                    of: "2nd",
+                    in: headers
+                ),
+
+            let thirdColumn =
+                index(
+                    of: "3rd",
+                    in: headers
+                ),
+
+            let championColumn =
+                index(
+                    of: "Reg Champ",
+                    in: headers
+                )
+
+        else {
+            return []
+        }
+
+
+        var results:
+            [FantasyYearlyFinish] = []
+
+
+        for row in rows.dropFirst(
+            headerRowIndex + 1
+        ) {
+
+            guard let year =
+                    Int(
+                        value(
+                            row,
+                            yearColumn
+                        )
+                    )
+            else {
+                break
+            }
+
+
+            let first =
+                ManagerNameNormalizer.normalize(
+                    value(
+                        row,
+                        firstColumn
+                    )
+                )
+
+
+            let second =
+                ManagerNameNormalizer.normalize(
+                    value(
+                        row,
+                        secondColumn
+                    )
+                )
+
+
+            let third =
+                ManagerNameNormalizer.normalize(
+                    value(
+                        row,
+                        thirdColumn
+                    )
+                )
+
+
+            let champion =
+                ManagerNameNormalizer.normalize(
+                    value(
+                        row,
+                        championColumn
+                    )
+                )
+
+
+            results.append(
+                FantasyYearlyFinish(
+                    year: year,
+
+                    firstPlace: first,
+
+                    secondPlace: second,
+
+                    thirdPlace: third,
+
+                    regularSeasonChampion:
+                        champion
+                )
+            )
+        }
+
+
+        return results.sorted {
+            $0.year > $1.year
+        }
+    }
+}
+
+
+// MARK: - Career Titles
+
+private extension FantasyWinLossParser {
+
+    static func parseCareerTitles(
+        _ rows: [[String]],
+        yearlyFinishes: [FantasyYearlyFinish]
+    ) -> [FantasyCareerTitles] {
+
+        guard let headerRowIndex =
+                rows.firstIndex(
+                    where: { row in
+
+                        row.contains {
+                            clean($0) ==
+                            "Reg Season Champ"
+                        }
+                        &&
+                        row.contains {
+                            clean($0) ==
+                            "Season High Points"
+                        }
+                    }
+                )
+        else {
+            return []
+        }
+
+
+        let headers =
+            rows[headerRowIndex]
+
+
+        guard
+            let regChampColumn =
+                index(
+                    of:
+                        "Reg Season Champ",
+                    in:
+                        headers
+                ),
+
+            let highPointsColumn =
+                index(
+                    of:
+                        "Season High Points",
+                    in:
+                        headers
+                )
+
+        else {
+            return []
+        }
+
+
+        let playerColumn =
+            regChampColumn - 1
+
+
+        var results:
+            [FantasyCareerTitles] = []
+
+
+        for row in rows.dropFirst(
+            headerRowIndex + 1
+        ) {
+
+            let rawPlayer =
+                value(
+                    row,
+                    playerColumn
+                )
+
+
+            if rawPlayer.isEmpty {
+                break
+            }
+
+
+            let player =
+                ManagerNameNormalizer
+                    .normalize(
+                        rawPlayer
+                    )
+
+
+            // Count actual Fantasy Championships
+            // from the historical 1st-place column.
+
+            let championships =
+                yearlyFinishes.filter {
+
+                    ManagerNameNormalizer
+                        .normalize(
+                            $0.firstPlace
+                        ) == player
+
+                }.count
+
+
+            results.append(
+                FantasyCareerTitles(
+
+                    player:
+                        player,
+
+                    championships:
+                        championships,
+
+                    regularSeasonChampionships:
+                        integer(
+                            value(
+                                row,
+                                regChampColumn
+                            )
+                        ),
+
+                    seasonHighPointsTitles:
+                        integer(
+                            value(
+                                row,
+                                highPointsColumn
+                            )
+                        )
+                )
+            )
+        }
+
+
+        return results
+    }
+}
+
+
+// MARK: - Generic Helpers
+
+private extension FantasyWinLossParser {
+
+    static func index(
+        of header: String,
+        in row: [String],
+        startingAt start: Int = 0
+    ) -> Int? {
+
+        guard start < row.count else {
+            return nil
+        }
+
+
+        for column in start..<row.count {
+
+            if clean(
+                row[column]
+            ) == clean(
+                header
+            ) {
+
+                return column
+            }
+        }
+
+
+        return nil
+    }
 
 
     static func isPointsHeader(
@@ -277,6 +757,7 @@ private extension FantasyWinLossParser {
         let header =
             clean(text)
                 .lowercased()
+
 
         return
             header == "pts" ||
@@ -309,6 +790,7 @@ private extension FantasyWinLossParser {
             return ""
         }
 
+
         return clean(
             row[column]
         )
@@ -325,6 +807,11 @@ private extension FantasyWinLossParser {
                     of: ",",
                     with: ""
                 )
+                .replacingOccurrences(
+                    of: "-",
+                    with: "0"
+                )
+
 
         if let value =
             Int(cleaned) {
@@ -332,11 +819,13 @@ private extension FantasyWinLossParser {
             return value
         }
 
+
         if let value =
             Double(cleaned) {
 
             return Int(value)
         }
+
 
         return 0
     }
@@ -346,17 +835,16 @@ private extension FantasyWinLossParser {
         _ text: String
     ) -> Double {
 
-        let cleaned =
-            text
-                .replacingOccurrences(
-                    of: ",",
-                    with: ""
-                )
-                .replacingOccurrences(
-                    of: "$",
-                    with: ""
-                )
+        SpreadsheetNumberParser
+            .number(text) ?? 0
+    }
 
-        return Double(cleaned) ?? 0
+
+    static func percentage(
+        _ text: String
+    ) -> Double {
+
+        SpreadsheetNumberParser
+            .percentage(text)
     }
 }

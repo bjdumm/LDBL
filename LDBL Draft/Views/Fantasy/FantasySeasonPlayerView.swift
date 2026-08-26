@@ -1,45 +1,123 @@
-//
-//  FantasySeasonPlayerView.swift
-//  LDBL Draft
-//
-//  Created by Brennan Dumm on 8/15/26.
-//
-
 import SwiftUI
 
 struct FantasySeasonPlayerView: View {
 
-    let player: FantasySeasonPlayer
+    let player:
+        FantasySeasonPlayer
+
+    let actualRecord:
+        FantasyActualRecord?
+
+    let isChampion: Bool
+
 
     var body: some View {
 
         List {
 
-            Section("Season Record") {
+            // MARK: - Actual Record
 
-                HStack {
+            Section(
+                "Actual Fantasy Record"
+            ) {
 
-                    Text("Wins")
+                if let actualRecord {
 
-                    Spacer()
+                    if isChampion {
+
+                        HStack {
+
+                            Label(
+                                "League Champion",
+                                systemImage:
+                                    "trophy.fill"
+                            )
+                            .fontWeight(
+                                .semibold
+                            )
+                            .foregroundStyle(
+                                .yellow
+                            )
+
+                            Spacer()
+                        }
+                    }
+
+
+                    statRow(
+                        "Wins",
+                        "\(actualRecord.wins)"
+                    )
+
+
+                    statRow(
+                        "Losses",
+                        "\(actualRecord.losses)"
+                    )
+
+
+                    HStack {
+
+                        Text("Win %")
+
+                        Spacer()
+
+                        Text(
+                            verbatim:
+                                AppNumberFormat.percent(
+                                    actualRecord.winPercentage
+                                )
+                        )
+                        .fontWeight(.semibold)
+                    }
+
+
+                    HStack {
+
+                        Text(
+                            "Points Scored"
+                        )
+
+                        Spacer()
+
+                        Text(
+                            verbatim:
+                                AppNumberFormat.decimal(
+                                    actualRecord.points
+                                )
+                        )
+                        .fontWeight(.semibold)
+                    }
+
+                } else {
 
                     Text(
-                        "\(player.wins)"
+                        "Actual record unavailable."
                     )
-                    .fontWeight(.bold)
-                }
-
-                HStack {
-
-                    Text("Losses")
-
-                    Spacer()
-
-                    Text(
-                        "\(player.losses)"
+                    .foregroundStyle(
+                        .secondary
                     )
-                    .fontWeight(.bold)
                 }
+            }
+
+
+            // MARK: - All-Play Record
+
+            Section(
+                "All-Play Record"
+            ) {
+
+                statRow(
+                    "Wins",
+                    "\(player.wins)"
+                )
+
+
+                statRow(
+                    "Losses",
+                    "\(player.losses)"
+                )
+
 
                 HStack {
 
@@ -48,18 +126,22 @@ struct FantasySeasonPlayerView: View {
                     Spacer()
 
                     Text(
-                        player.winPercentage,
-                        format:
-                            .percent.precision(
-                                .fractionLength(1)
+                        verbatim:
+                            AppNumberFormat.percent(
+                                player.winPercentage
                             )
                     )
-                    .fontWeight(.bold)
+                    .fontWeight(.semibold)
+                    
                 }
             }
 
 
-            Section("Weekly Results") {
+            // MARK: - Weekly All-Play Results
+
+            Section(
+                "Weekly All-Play Results"
+            ) {
 
                 ForEach(
                     player.weeks
@@ -76,11 +158,42 @@ struct FantasySeasonPlayerView: View {
                         Text(
                             "\(week.wins)-\(week.losses)"
                         )
-                        .fontWeight(.semibold)
+                        .fontWeight(
+                            .semibold
+                        )
                     }
                 }
             }
         }
-        .navigationTitle(player.name)
+        .navigationTitle(
+            ManagerNameNormalizer
+                .normalize(
+                    player.name
+                )
+        )
+        .navigationBarTitleDisplayMode(
+            .inline
+        )
+    }
+
+
+    // MARK: - Stat Row
+
+    private func statRow(
+        _ title: String,
+        _ value: String
+    ) -> some View {
+
+        HStack {
+
+            Text(title)
+
+            Spacer()
+
+            Text(value)
+                .fontWeight(
+                    .semibold
+                )
+        }
     }
 }

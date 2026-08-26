@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 
+
 @MainActor
 final class LeagueDataStore: ObservableObject {
 
@@ -44,6 +45,7 @@ final class LeagueDataStore: ObservableObject {
     // MARK: - State
 
     @Published var isLoading = false
+
     @Published var errorMessage = ""
 
     private var hasLoaded = false
@@ -73,6 +75,7 @@ final class LeagueDataStore: ObservableObject {
         defer {
             isLoading = false
         }
+
 
         do {
 
@@ -163,6 +166,9 @@ final class LeagueDataStore: ObservableObject {
     }
 }
 
+
+// MARK: - Manager Profiles
+
 private extension LeagueDataStore {
 
     func buildManagerProfiles(
@@ -236,6 +242,14 @@ private extension LeagueDataStore {
         }
 
 
+        // Remove people who should not appear
+        // in the Managers tab.
+
+        names.remove("Eagler")
+        names.remove("HANDY")
+        names.remove("Jim")
+
+
         return names
             .map { name in
 
@@ -262,10 +276,12 @@ private extension LeagueDataStore {
         scoreboard: [ScoreboardSeason]
     ) -> ManagerProfile {
 
-        // MARK: All-Play Records
+
+        // MARK: - All-Play Records
 
         var managerSeasons:
             [ManagerSeasonStats] = []
+
 
         for season in seasons {
 
@@ -292,7 +308,7 @@ private extension LeagueDataStore {
         }
 
 
-        // MARK: Actual Records
+        // MARK: - Actual Records
 
         let managerActualRecords =
             actualRecords.seasons
@@ -311,7 +327,71 @@ private extension LeagueDataStore {
                 }
 
 
-        // MARK: Earnings
+        // MARK: - Fantasy Finishes
+
+        var managerFantasyFinishes:
+            [ManagerFantasyFinish] = []
+
+
+        for finish in
+            actualRecords.yearlyFinishes {
+
+            let firstPlace =
+                ManagerNameNormalizer
+                    .normalize(
+                        finish.firstPlace
+                    )
+
+            let secondPlace =
+                ManagerNameNormalizer
+                    .normalize(
+                        finish.secondPlace
+                    )
+
+            let thirdPlace =
+                ManagerNameNormalizer
+                    .normalize(
+                        finish.thirdPlace
+                    )
+
+
+            if firstPlace == name {
+
+                managerFantasyFinishes.append(
+                    ManagerFantasyFinish(
+                        year:
+                            finish.year,
+                        place:
+                            1
+                    )
+                )
+
+            } else if secondPlace == name {
+
+                managerFantasyFinishes.append(
+                    ManagerFantasyFinish(
+                        year:
+                            finish.year,
+                        place:
+                            2
+                    )
+                )
+
+            } else if thirdPlace == name {
+
+                managerFantasyFinishes.append(
+                    ManagerFantasyFinish(
+                        year:
+                            finish.year,
+                        place:
+                            3
+                    )
+                )
+            }
+        }
+
+
+        // MARK: - Earnings
 
         let managerEarnings =
             earnings.first {
@@ -323,7 +403,7 @@ private extension LeagueDataStore {
             }
 
 
-        // MARK: Beer Games
+        // MARK: - Beer Games
 
         let beerGameResults =
             scoreboard
@@ -342,13 +422,18 @@ private extension LeagueDataStore {
                 }
 
 
+        // MARK: - Build Profile
+
         return ManagerProfile(
-            name: name,
+
+            name:
+                name,
 
             seasons:
-                managerSeasons.sorted {
-                    $0.year > $1.year
-                },
+                managerSeasons
+                    .sorted {
+                        $0.year > $1.year
+                    },
 
             earnings:
                 managerEarnings,
@@ -357,7 +442,13 @@ private extension LeagueDataStore {
                 beerGameResults,
 
             actualFantasyRecords:
-                managerActualRecords
+                managerActualRecords,
+
+            fantasyFinishes:
+                managerFantasyFinishes
+                    .sorted {
+                        $0.year > $1.year
+                    }
         )
     }
 }

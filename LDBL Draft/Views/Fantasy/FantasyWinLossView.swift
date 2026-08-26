@@ -5,6 +5,7 @@ struct FantasyWinLossView: View {
     @EnvironmentObject var leagueData:
         LeagueDataStore
 
+
     var body: some View {
 
         Group {
@@ -20,6 +21,32 @@ struct FantasyWinLossView: View {
                         leagueData.fantasyWinLoss {
 
                 List {
+
+                    // MARK: - Permanent Top Section
+
+                    Section {
+
+                        NavigationLink {
+
+                            FantasyWinLossSummaryView(
+                                data: data
+                            )
+
+                        } label: {
+
+                            Label(
+                                "Career Summary",
+                                systemImage:
+                                    "trophy.fill"
+                            )
+                            .fontWeight(
+                                .semibold
+                            )
+                        }
+                    }
+
+
+                    // MARK: - Individual Seasons
 
                     ForEach(
                         data.seasons
@@ -46,25 +73,30 @@ struct FantasyWinLossView: View {
                                 HStack {
 
                                     VStack(
-                                        alignment: .leading,
+                                        alignment:
+                                            .leading,
                                         spacing: 3
                                     ) {
 
-                                        Text(
-                                            ManagerNameNormalizer
-                                                .normalize(
-                                                    player.player
-                                                )
-                                        )
-                                        .fontWeight(
-                                            .semibold
-                                        )
+                                        HStack(spacing: 8) {
+
+                                            ManagerAvatarView(
+                                                managerName: player.player,
+                                                size: 30
+                                            )
+
+                                            Text(player.player)
+                                                .fontWeight(.semibold)
+                                        }
 
 
                                         Text(
-                                            "\(player.points, specifier: "%.1f") pts"
+                                            verbatim:
+                                                "\(AppNumberFormat.decimal(player.points)) pts"
                                         )
-                                        .font(.caption)
+                                        .font(
+                                            .caption
+                                        )
                                         .foregroundStyle(
                                             .secondary
                                         )

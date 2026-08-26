@@ -93,13 +93,9 @@ struct AccumulatedEarningsDetailView: View {
             Spacer()
 
             Text(
-                amount,
-                format:
-                    .currency(
-                        code: "USD"
-                    )
-                    .precision(
-                        .fractionLength(0)
+                verbatim:
+                    AppNumberFormat.currency(
+                        amount
                     )
             )
             .fontWeight(.semibold)

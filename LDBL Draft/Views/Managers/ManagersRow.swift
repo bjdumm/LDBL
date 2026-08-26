@@ -8,12 +8,10 @@ struct ManagerRow: View {
 
         HStack(spacing: 14) {
 
-            Image(
-                systemName:
-                    "person.crop.circle.fill"
+            ManagerAvatarView(
+                managerName: manager.name,
+                size: 48
             )
-            .font(.largeTitle)
-            .foregroundStyle(.secondary)
 
 
             VStack(
@@ -41,7 +39,8 @@ struct ManagerRow: View {
                 if manager.beerGameSeasonsPlayed > 0 {
 
                     Text(
-                        "\(manager.averageBeerGamePoints, specifier: "%.1f") avg Beer Game pts"
+                        verbatim:
+                            "\(AppNumberFormat.decimal(manager.averageBeerGamePoints)) avg Beer Game pts"
                     )
                     .font(.caption)
                     .foregroundStyle(
@@ -57,19 +56,20 @@ struct ManagerRow: View {
             if manager.totalWinnings > 0 {
 
                 Text(
-                    manager.totalWinnings,
-                    format:
-                        .currency(
-                            code: "USD"
-                        )
-                        .precision(
-                            .fractionLength(0)
+                    verbatim:
+                        AppNumberFormat.currency(
+                            manager.totalWinnings
                         )
                 )
                 .font(.subheadline)
-                .fontWeight(.semibold)
+                .fontWeight(
+                    .semibold
+                )
             }
         }
-        .padding(.vertical, 4)
+        .padding(
+            .vertical,
+            4
+        )
     }
 }

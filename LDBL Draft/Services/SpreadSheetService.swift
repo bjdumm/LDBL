@@ -169,50 +169,74 @@ final class SpreadsheetService {
 
         async let scoreboardRequest =
             loadScoreboardAll()
-            
+
         async let actualRecordsRequest =
             loadFantasyWinLoss()
 
 
-            let (
-                seasons,
-                earnings,
-                scoreboard,
-                actualRecords
-            ) = try await (
-                seasonRequest,
-                earningsRequest,
-                scoreboardRequest,
-                actualRecordsRequest
-            )
+        let (
+            seasons,
+            earnings,
+            scoreboard,
+            actualRecords
+        ) = try await (
+            seasonRequest,
+            earningsRequest,
+            scoreboardRequest,
+            actualRecordsRequest
+        )
 
 
         var names = Set<String>()
 
 
-        // Fantasy names
+        // MARK: - Fantasy Names
+
         for season in seasons {
 
             for player in season.players {
-                names.insert(player.name)
+
+                names.insert(
+                    ManagerNameNormalizer
+                        .normalize(
+                            player.name
+                        )
+                )
             }
         }
 
 
-        // Earnings names
+        // MARK: - Earnings Names
+
         for player in earnings {
-            names.insert(player.player)
+
+            names.insert(
+                ManagerNameNormalizer
+                    .normalize(
+                        player.player
+                    )
+            )
         }
 
 
-        // Beer Games names
+        // MARK: - Beer Games Names
+
         for beerGameSeason in scoreboard {
 
             for entry in beerGameSeason.entries {
-                names.insert(entry.player)
+
+                names.insert(
+                    ManagerNameNormalizer
+                        .normalize(
+                            entry.player
+                        )
+                )
             }
         }
-            
+
+
+        // MARK: - Actual Fantasy Names
+
         for season in actualRecords.seasons {
 
             for player in season.players {
@@ -227,29 +251,135 @@ final class SpreadsheetService {
         }
 
 
+        // MARK: - Remove Managers From List
+
+        names.remove("Eagler")
+        names.remove("Handy")
+        names.remove("HANDY")
+        names.remove("Jim")
+
+
+        // MARK: - Build Profiles
+
         let profiles =
             names.map { name in
+
 
                 // MARK: Fantasy Seasons
 
                 var managerSeasons:
                     [ManagerSeasonStats] = []
 
+
                 for season in seasons {
 
                     if let player =
                         season.players.first(
                             where: {
-                                $0.name == name
+
+                                ManagerNameNormalizer
+                                    .normalize(
+                                        $0.name
+                                    ) == name
                             }
                         ) {
 
                         managerSeasons.append(
                             ManagerSeasonStats(
-                                manager: name,
-                                year: season.year,
-                                wins: player.wins,
-                                losses: player.losses
+                                manager:
+                                    name,
+
+                                year:
+                                    season.year,
+
+                                wins:
+                                    player.wins,
+
+                                losses:
+                                    player.losses
+                            )
+                        )
+                    }
+                }
+
+
+                // MARK: Actual Fantasy Records
+
+                let managerActualRecords =
+                    actualRecords.seasons
+                        .flatMap {
+                            $0.players
+                        }
+                        .filter {
+
+                            ManagerNameNormalizer
+                                .normalize(
+                                    $0.player
+                                ) == name
+                        }
+                        .sorted {
+                            $0.year > $1.year
+                        }
+
+
+                // MARK: Fantasy Finishes
+
+                var managerFantasyFinishes:
+                    [ManagerFantasyFinish] = []
+
+
+                for finish in
+                    actualRecords.yearlyFinishes {
+
+                    let firstPlace =
+                        ManagerNameNormalizer
+                            .normalize(
+                                finish.firstPlace
+                            )
+
+                    let secondPlace =
+                        ManagerNameNormalizer
+                            .normalize(
+                                finish.secondPlace
+                            )
+
+                    let thirdPlace =
+                        ManagerNameNormalizer
+                            .normalize(
+                                finish.thirdPlace
+                            )
+
+
+                    if firstPlace == name {
+
+                        managerFantasyFinishes.append(
+                            ManagerFantasyFinish(
+                                year:
+                                    finish.year,
+                                place:
+                                    1
+                            )
+                        )
+
+                    } else if secondPlace == name {
+
+                        managerFantasyFinishes.append(
+                            ManagerFantasyFinish(
+                                year:
+                                    finish.year,
+                                place:
+                                    2
+                            )
+                        )
+
+                    } else if thirdPlace == name {
+
+                        managerFantasyFinishes.append(
+                            ManagerFantasyFinish(
+                                year:
+                                    finish.year,
+                                place:
+                                    3
                             )
                         )
                     }
@@ -260,7 +390,11 @@ final class SpreadsheetService {
 
                 let managerEarnings =
                     earnings.first {
-                        $0.player == name
+
+                        ManagerNameNormalizer
+                            .normalize(
+                                $0.player
+                            ) == name
                     }
 
 
@@ -272,18 +406,7 @@ final class SpreadsheetService {
                             $0.entries
                         }
                         .filter {
-                            $0.player == name
-                        }
-                        .sorted {
-                            $0.year > $1.year
-                        }
 
-                let managerActualRecords =
-                    actualRecords.seasons
-                        .flatMap {
-                            $0.players
-                        }
-                        .filter {
                             ManagerNameNormalizer
                                 .normalize(
                                     $0.player
@@ -292,20 +415,35 @@ final class SpreadsheetService {
                         .sorted {
                             $0.year > $1.year
                         }
-                
-                
+
+
+                // MARK: Manager Profile
+
                 return ManagerProfile(
-                    name: name,
+
+                    name:
+                        name,
+
                     seasons:
-                        managerSeasons.sorted {
-                            $0.year > $1.year
-                        },
+                        managerSeasons
+                            .sorted {
+                                $0.year > $1.year
+                            },
+
                     earnings:
                         managerEarnings,
+
                     beerGameResults:
                         beerGameResults,
+
                     actualFantasyRecords:
-                        managerActualRecords
+                        managerActualRecords,
+
+                    fantasyFinishes:
+                        managerFantasyFinishes
+                            .sorted {
+                                $0.year > $1.year
+                            }
                 )
             }
 

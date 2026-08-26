@@ -20,12 +20,8 @@ struct ManagerDetailView: View {
 
             yearlyEarningsSection
         }
-        .navigationTitle(
-            manager.name
-        )
-        .navigationBarTitleDisplayMode(
-            .inline
-        )
+        .navigationTitle(manager.name)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -34,8 +30,9 @@ struct ManagerDetailView: View {
 
 private extension ManagerDetailView {
 
-    var fantasyCareerSection:
-        some View {
+    // MARK: Fantasy Career
+
+    var fantasyCareerSection: some View {
 
         Section("Fantasy Career") {
 
@@ -44,90 +41,106 @@ private extension ManagerDetailView {
                 "\(manager.seasonsPlayed)"
             )
 
+            statRow(
+                "Championships",
+                "\(manager.fantasyChampionships)"
+            )
+
+            statRow(
+                "Beer Game Championships",
+                "\(manager.beerGameChampionships)"
+            )
 
             statRow(
                 "Actual Record",
                 "\(manager.actualCareerWins)-\(manager.actualCareerLosses)"
             )
 
-
             statRow(
                 "All-Play Record",
                 "\(manager.allPlayCareerWins)-\(manager.allPlayCareerLosses)"
             )
 
-
-            HStack {
-
-                Text("Actual Win %")
-
-                Spacer()
-
-                Text(
-                    manager
-                        .actualCareerWinPercentage,
-                    format:
-                        .percent.precision(
-                            .fractionLength(1)
-                        )
+            statRow(
+                "Actual Win %",
+                AppNumberFormat.percent(
+                    manager.actualCareerWinPercentage
                 )
-                .fontWeight(.semibold)
-            }
+            )
 
-
-            HStack {
-
-                Text("All-Play Win %")
-
-                Spacer()
-
-                Text(
-                    manager
-                        .allPlayCareerWinPercentage,
-                    format:
-                        .percent.precision(
-                            .fractionLength(1)
-                        )
+            statRow(
+                "All-Play Win %",
+                AppNumberFormat.percent(
+                    manager.allPlayCareerWinPercentage
                 )
-                .fontWeight(.semibold)
-            }
+            )
         }
     }
 
 
-    var seasonHistorySection:
-        some View {
+    // MARK: Fantasy Season History
 
-        Section(
-            "Fantasy Season History"
-        ) {
+    var seasonHistorySection: some View {
 
-            ForEach(
-                manager.seasons
-            ) { season in
+        Section("Fantasy Season History") {
+
+            ForEach(manager.seasons) { season in
 
                 let actual =
                     manager
                         .actualFantasyRecords
                         .first {
-                            $0.year ==
-                            season.year
+                            $0.year == season.year
                         }
+
+                let finish =
+                    manager.fantasyFinish(
+                        for: season.year
+                    )
+
+                let isChampion =
+                    finish?.place == 1
 
 
                 VStack(
                     alignment: .leading,
-                    spacing: 7
+                    spacing: 8
                 ) {
 
-                    Text(
-                        verbatim:
-                            String(
-                                season.year
-                            )
-                    )
-                    .font(.headline)
+                    // MARK: Year
 
+                    HStack(spacing: 7) {
+
+                        Text(
+                            verbatim:
+                                String(season.year)
+                        )
+                        .font(
+                            isChampion
+                            ? .headline.bold()
+                            : .headline
+                        )
+
+
+                        if isChampion {
+
+                            Image(
+                                systemName:
+                                    "trophy.fill"
+                            )
+                            .foregroundStyle(
+                                trophyColor(
+                                    for: 1
+                                )
+                            )
+                        }
+
+
+                        Spacer()
+                    }
+
+
+                    // MARK: Actual
 
                     HStack {
 
@@ -140,19 +153,19 @@ private extension ManagerDetailView {
                             Text(
                                 "\(actual.wins)-\(actual.losses)"
                             )
-                            .fontWeight(
-                                .semibold
-                            )
+                            .fontWeight(.semibold)
 
                         } else {
 
-                            Text("-")
+                            Text("—")
                                 .foregroundStyle(
                                     .secondary
                                 )
                         }
                     }
 
+
+                    // MARK: All-Play
 
                     HStack {
 
@@ -163,11 +176,56 @@ private extension ManagerDetailView {
                         Text(
                             "\(season.wins)-\(season.losses)"
                         )
-                        .fontWeight(
-                            .semibold
-                        )
+                        .fontWeight(.semibold)
                     }
 
+
+                    // MARK: Finish
+
+                    HStack {
+
+                        Text("Finish")
+
+                        Spacer()
+
+                        if let finish {
+
+                            HStack(spacing: 6) {
+
+                                Image(
+                                    systemName:
+                                        "trophy.fill"
+                                )
+                                .foregroundStyle(
+                                    trophyColor(
+                                        for:
+                                            finish.place
+                                    )
+                                )
+                                .font(.caption)
+
+
+                                Text(
+                                    ordinal(
+                                        finish.place
+                                    )
+                                )
+                                .fontWeight(
+                                    .semibold
+                                )
+                            }
+
+                        } else {
+
+                            Text("—")
+                                .foregroundStyle(
+                                    .secondary
+                                )
+                        }
+                    }
+
+
+                    // MARK: Points
 
                     if let actual {
 
@@ -178,63 +236,49 @@ private extension ManagerDetailView {
                             Spacer()
 
                             Text(
-                                actual.points,
-                                format:
-                                    .number
-                                    .precision(
-                                        .fractionLength(
-                                            1
+                                verbatim:
+                                    AppNumberFormat
+                                        .groupedDecimal(
+                                            actual.points
                                         )
-                                    )
+                            )
+                            .fontWeight(
+                                .semibold
                             )
                         }
                     }
                 }
                 .padding(
                     .vertical,
-                    3
+                    4
                 )
             }
         }
     }
 
 
-    var beerGamesCareerSection:
-        some View {
+    // MARK: Beer Games Career
 
-        Section(
-            "Beer Games Career"
-        ) {
+    var beerGamesCareerSection: some View {
+
+        Section("Beer Games Career") {
 
             statRow(
                 "Seasons",
                 "\(manager.beerGameSeasonsPlayed)"
             )
 
-
             statRow(
                 "Total Points",
                 "\(manager.beerGameTotalPoints)"
             )
 
-
-            HStack {
-
-                Text("Average Points")
-
-                Spacer()
-
-                Text(
-                    manager
-                        .averageBeerGamePoints,
-                    format:
-                        .number.precision(
-                            .fractionLength(1)
-                        )
+            statRow(
+                "Average Points",
+                AppNumberFormat.decimal(
+                    manager.averageBeerGamePoints
                 )
-                .fontWeight(.semibold)
-            }
-
+            )
 
             if let bestFinish =
                 manager.bestBeerGameFinish {
@@ -245,7 +289,6 @@ private extension ManagerDetailView {
                 )
             }
 
-
             statRow(
                 "Championships",
                 "\(manager.beerGameChampionships)"
@@ -254,16 +297,13 @@ private extension ManagerDetailView {
     }
 
 
-    var beerGamesHistorySection:
-        some View {
+    // MARK: Beer Games History
 
-        Section(
-            "Beer Games History"
-        ) {
+    var beerGamesHistorySection: some View {
 
-            if manager
-                .beerGameResults
-                .isEmpty {
+        Section("Beer Games History") {
+
+            if manager.beerGameResults.isEmpty {
 
                 Text(
                     "No Beer Games history available."
@@ -295,9 +335,7 @@ private extension ManagerDetailView {
                                     )
                             )
 
-
                             Spacer()
-
 
                             Text(
                                 "#\(result.place)"
@@ -305,7 +343,6 @@ private extension ManagerDetailView {
                             .fontWeight(
                                 .semibold
                             )
-
 
                             Text(
                                 "\(result.totalPoints) pts"
@@ -321,24 +358,21 @@ private extension ManagerDetailView {
     }
 
 
-    var earningsSection:
-        some View {
+    // MARK: Career Earnings
 
-        Section(
-            "Career Earnings"
-        ) {
+    var earningsSection: some View {
+
+        Section("Career Earnings") {
 
             moneyRow(
                 "Winnings",
                 manager.totalWinnings
             )
 
-
             moneyRow(
                 "Fees",
                 manager.totalFees
             )
-
 
             moneyRow(
                 "Return",
@@ -348,9 +382,10 @@ private extension ManagerDetailView {
     }
 
 
+    // MARK: Winnings by Season
+
     @ViewBuilder
-    var yearlyEarningsSection:
-        some View {
+    var yearlyEarningsSection: some View {
 
         if let earnings =
             manager.earnings {
@@ -372,25 +407,17 @@ private extension ManagerDetailView {
                                 )
                         )
 
-
                         Spacer()
-
 
                         if let amount =
                             season.amount {
 
                             Text(
-                                amount,
-                                format:
-                                    .currency(
-                                        code:
-                                            "USD"
-                                    )
-                                    .precision(
-                                        .fractionLength(
-                                            0
+                                verbatim:
+                                    AppNumberFormat
+                                        .currency(
+                                            amount
                                         )
-                                    )
                             )
 
                         } else {
@@ -407,6 +434,8 @@ private extension ManagerDetailView {
     }
 
 
+    // MARK: - Helpers
+
     func statRow(
         _ title: String,
         _ value: String
@@ -418,10 +447,12 @@ private extension ManagerDetailView {
 
             Spacer()
 
-            Text(value)
-                .fontWeight(
-                    .semibold
-                )
+            Text(
+                verbatim: value
+            )
+            .fontWeight(
+                .semibold
+            )
         }
     }
 
@@ -438,18 +469,65 @@ private extension ManagerDetailView {
             Spacer()
 
             Text(
-                amount,
-                format:
-                    .currency(
-                        code: "USD"
-                    )
-                    .precision(
-                        .fractionLength(0)
-                    )
+                verbatim:
+                    AppNumberFormat
+                        .currency(
+                            amount
+                        )
             )
             .fontWeight(
                 .semibold
             )
+        }
+    }
+
+
+    func ordinal(
+        _ number: Int
+    ) -> String {
+
+        switch number {
+
+        case 1:
+            return "1st"
+
+        case 2:
+            return "2nd"
+
+        case 3:
+            return "3rd"
+
+        default:
+            return "\(number)th"
+        }
+    }
+
+
+    func trophyColor(
+        for place: Int
+    ) -> Color {
+
+        switch place {
+
+        case 1:
+            return .yellow
+
+        case 2:
+            return Color(
+                red: 0.68,
+                green: 0.68,
+                blue: 0.72
+            )
+
+        case 3:
+            return Color(
+                red: 0.72,
+                green: 0.45,
+                blue: 0.20
+            )
+
+        default:
+            return .secondary
         }
     }
 }

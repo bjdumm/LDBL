@@ -1,10 +1,3 @@
-//
-//  AccumulatedEarningsParser.swift
-//  LDBL Draft
-//
-//  Created by Brennan Dumm on 8/15/26.
-//
-
 import Foundation
 
 struct AccumulatedEarningsParser {
@@ -25,15 +18,19 @@ struct AccumulatedEarningsParser {
             return []
         }
 
+
         let headerRowIndex =
             titleRowIndex + 1
+
 
         guard headerRowIndex < rows.count else {
             return []
         }
 
+
         let headers =
             rows[headerRowIndex]
+
 
         guard
             let playerColumn =
@@ -59,21 +56,19 @@ struct AccumulatedEarningsParser {
         }
 
 
-        // MARK: Find year columns
+        // MARK: - Year Columns
 
         var yearColumns:
             [(year: Int, column: Int)] = []
+
 
         for (
             columnIndex,
             header
         ) in headers.enumerated() {
 
-            let cleanedHeader =
-                clean(header)
-
             if let year =
-                    Int(cleanedHeader),
+                    Int(clean(header)),
                year >= 2000,
                year <= 2100 {
 
@@ -86,15 +81,17 @@ struct AccumulatedEarningsParser {
             }
         }
 
+
         yearColumns.sort {
             $0.year < $1.year
         }
 
 
-        // MARK: Parse Players
+        // MARK: - Players
 
         var results:
             [AccumulatedEarningsPlayer] = []
+
 
         for row in rows.dropFirst(
             headerRowIndex + 1
@@ -106,67 +103,76 @@ struct AccumulatedEarningsParser {
                     playerColumn
                 )
 
+
             if player.isEmpty {
                 break
             }
 
 
-            // Every year gets an entry,
-            // even when the spreadsheet says "-"
-
             var yearlyWinnings:
                 [YearlyEarnings] = []
 
+
             for yearColumn in yearColumns {
 
-                let rawValue =
+                let raw =
                     value(
                         row,
                         yearColumn.column
                     )
 
-                let amount =
-                    moneyValue(rawValue)
 
                 yearlyWinnings.append(
                     YearlyEarnings(
-                        year: yearColumn.year,
-                        amount: amount
+                        year:
+                            yearColumn.year,
+
+                        amount:
+                            SpreadsheetNumberParser
+                                .number(raw)
                     )
                 )
             }
 
 
             let totalWinnings =
-                moneyValue(
-                    value(
-                        row,
-                        winningsColumn
-                    )
-                ) ?? 0
+                SpreadsheetNumberParser
+                    .number(
+                        value(
+                            row,
+                            winningsColumn
+                        )
+                    ) ?? 0
 
 
             let totalFees =
-                moneyValue(
-                    value(
-                        row,
-                        feesColumn
-                    )
-                ) ?? 0
+                SpreadsheetNumberParser
+                    .number(
+                        value(
+                            row,
+                            feesColumn
+                        )
+                    ) ?? 0
 
 
             results.append(
                 AccumulatedEarningsPlayer(
-                    player: player,
+                    player:
+                        ManagerNameNormalizer
+                            .normalize(player),
+
                     yearlyWinnings:
                         yearlyWinnings,
+
                     totalWinnings:
                         totalWinnings,
+
                     totalFees:
                         totalFees
                 )
             )
         }
+
 
         return results
     }
@@ -183,6 +189,7 @@ private extension AccumulatedEarningsParser {
     ) -> Int? {
 
         row.firstIndex {
+
             normalized($0) ==
             normalized(header)
         }
@@ -218,68 +225,13 @@ private extension AccumulatedEarningsParser {
     ) -> String {
 
         guard index >= 0,
-              index < row.count else {
+              index < row.count
+        else {
             return ""
         }
 
-        return clean(row[index])
-    }
-
-
-    static func moneyValue(
-        _ text: String
-    ) -> Double? {
-
-        var cleaned =
-            text
-                .replacingOccurrences(
-                    of: "$",
-                    with: ""
-                )
-                .replacingOccurrences(
-                    of: ",",
-                    with: ""
-                )
-                .trimmingCharacters(
-                    in: .whitespacesAndNewlines
-                )
-
-
-        // Blank or "-" means no earnings
-        guard !cleaned.isEmpty,
-              cleaned != "-"
-        else {
-            return nil
-        }
-
-
-        // Handle accounting-style negatives:
-        //
-        // ($500)
-        // becomes
-        // -500
-
-        if cleaned.hasPrefix("(") &&
-            cleaned.hasSuffix(")") {
-
-            cleaned =
-                cleaned
-                    .replacingOccurrences(
-                        of: "(",
-                        with: ""
-                    )
-                    .replacingOccurrences(
-                        of: ")",
-                        with: ""
-                    )
-
-            if let number =
-                Double(cleaned) {
-
-                return -number
-            }
-        }
-
-        return Double(cleaned)
+        return clean(
+            row[index]
+        )
     }
 }
