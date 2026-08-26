@@ -10,7 +10,8 @@ import Combine
 
 
 @MainActor
-final class LeagueDataStore: ObservableObject {
+final class LeagueDataStore:
+    ObservableObject {
 
     // MARK: - Fantasy
 
@@ -42,16 +43,35 @@ final class LeagueDataStore: ObservableObject {
         [ManagerProfile] = []
 
 
-    // MARK: - State
+    // MARK: - Loading State
 
     @Published var isLoading = false
 
+    @Published var isRefreshing = false
+
     @Published var errorMessage = ""
+
+    @Published var lastUpdated:
+        Date?
+
 
     private var hasLoaded = false
 
 
-    // MARK: - Load
+    /*
+     Automatically fetch Google again
+     if the saved data is older than
+     12 hours.
+
+     Pull-to-refresh ignores this.
+    */
+
+    private let automaticRefreshInterval:
+        TimeInterval =
+            12 * 60 * 60
+
+
+    // MARK: - Initial App Load
 
     func loadIfNeeded() async {
 
@@ -59,110 +79,295 @@ final class LeagueDataStore: ObservableObject {
             return
         }
 
-        await refresh()
+
+        hasLoaded = true
+
+
+        var loadedCache = false
+
+
+        // MARK: Load Cache First
+
+        do {
+
+            if let cached =
+                try await
+                    LeagueDataCache
+                        .shared
+                        .load() {
+
+                let payload =
+                    try SpreadsheetService
+                        .shared
+                        .parseLeagueData(
+                            from:
+                                cached.sheets
+                        )
+
+
+                apply(
+                    payload
+                )
+
+
+                lastUpdated =
+                    cached.lastUpdated
+
+
+                loadedCache = true
+
+
+                print(
+                    "Loaded league data from local cache."
+                )
+            }
+
+        } catch {
+
+            print(
+                "Unable to load league cache:",
+                error.localizedDescription
+            )
+        }
+
+
+        /*
+         If there's no cache at all,
+         show the loading indicator.
+
+         If we DO have cached data,
+         leave the interface visible.
+        */
+
+        if !loadedCache {
+
+            isLoading = true
+        }
+
+
+        // MARK: Decide Whether Google Is Needed
+
+        if shouldAutomaticallyRefresh() {
+
+            await refreshFromGoogle(
+                showLoading:
+                    !loadedCache
+            )
+
+        } else {
+
+            isLoading = false
+
+
+            print(
+                "Cached league data is still fresh."
+            )
+        }
     }
 
 
+    // MARK: - Pull To Refresh
+
+    /*
+     Existing views already call:
+
+     await leagueData.refresh()
+
+     This ALWAYS fetches Google,
+     regardless of cache age.
+    */
+
     func refresh() async {
 
-        guard !isLoading else {
+        await refreshFromGoogle(
+            showLoading: false
+        )
+    }
+
+
+    // MARK: - Google Refresh
+
+    private func refreshFromGoogle(
+        showLoading: Bool
+    ) async {
+
+        guard !isRefreshing else {
             return
         }
 
-        isLoading = true
+
+        isRefreshing = true
+
         errorMessage = ""
 
+
+        if showLoading {
+
+            isLoading = true
+        }
+
+
         defer {
+
+            isRefreshing = false
+
             isLoading = false
         }
 
 
         do {
 
-            async let seasonDetailsRequest =
-                SpreadsheetService.shared
-                    .loadSeasonDetails()
-
-            async let fantasyWinLossRequest =
-                SpreadsheetService.shared
-                    .loadFantasyWinLoss()
-
-            async let earningsRequest =
-                SpreadsheetService.shared
-                    .loadAccumulatedEarnings()
-
-            async let scoreboardRequest =
-                SpreadsheetService.shared
-                    .loadScoreboardAll()
-
-            async let recordsRequest =
-                SpreadsheetService.shared
-                    .loadBeerGameRecordHolders()
-
-            async let rulesRequest =
-                SpreadsheetService.shared
-                    .loadGamesAndRules()
+            let freshData =
+                try await
+                    SpreadsheetService
+                        .shared
+                        .fetchLeagueData()
 
 
-            let (
-                loadedSeasonDetails,
-                loadedWinLoss,
-                loadedEarnings,
-                loadedScoreboard,
-                loadedRecords,
-                loadedRules
-            ) = try await (
-                seasonDetailsRequest,
-                fantasyWinLossRequest,
-                earningsRequest,
-                scoreboardRequest,
-                recordsRequest,
-                rulesRequest
+            // MARK: Update UI
+
+            apply(
+                freshData.payload
             )
 
 
-            seasonDetails =
-                loadedSeasonDetails
+            // MARK: Save Cache
 
-            fantasyWinLoss =
-                loadedWinLoss
+            do {
 
-            accumulatedEarnings =
-                loadedEarnings
-
-            scoreboard =
-                loadedScoreboard
-
-            beerGameRecordHolders =
-                loadedRecords
-
-            gamesAndRules =
-                loadedRules
+                try await
+                    LeagueDataCache
+                        .shared
+                        .save(
+                            sheets:
+                                freshData
+                                    .rawSheets
+                        )
 
 
-            managers =
-                buildManagerProfiles(
-                    seasons:
-                        loadedSeasonDetails,
+                lastUpdated =
+                    Date()
 
-                    actualRecords:
-                        loadedWinLoss,
 
-                    earnings:
-                        loadedEarnings,
-
-                    scoreboard:
-                        loadedScoreboard
+                print(
+                    "Saved fresh league data to local cache."
                 )
 
+            } catch {
 
-            hasLoaded = true
+                /*
+                 Don't fail the UI merely
+                 because saving the cache
+                 failed.
+                */
+
+                print(
+                    "Unable to save league cache:",
+                    error.localizedDescription
+                )
+            }
+
+
+            print(
+                "League data refresh complete."
+            )
 
         } catch {
 
+            /*
+             IMPORTANT:
+
+             We do NOT clear existing data.
+
+             If cached data was already
+             displayed, it remains displayed.
+            */
+
             errorMessage =
                 error.localizedDescription
+
+
+            print(
+                "League refresh failed:",
+                error.localizedDescription
+            )
         }
+    }
+
+
+    // MARK: - Cache Freshness
+
+    private func shouldAutomaticallyRefresh()
+        -> Bool {
+
+        guard let lastUpdated
+        else {
+            return true
+        }
+
+
+        let age =
+            Date()
+                .timeIntervalSince(
+                    lastUpdated
+                )
+
+
+        return age >=
+            automaticRefreshInterval
+    }
+
+
+    // MARK: - Apply Loaded Data
+
+    private func apply(
+        _ data: LeagueDataPayload
+    ) {
+
+        // Fantasy
+
+        seasonDetails =
+            data.seasonDetails
+
+
+        fantasyWinLoss =
+            data.fantasyWinLoss
+
+
+        accumulatedEarnings =
+            data.accumulatedEarnings
+
+
+        // Beer Games
+
+        scoreboard =
+            data.scoreboard
+
+
+        beerGameRecordHolders =
+            data.beerGameRecordHolders
+
+
+        gamesAndRules =
+            data.gamesAndRules
+
+
+        // Managers
+
+        managers =
+            buildManagerProfiles(
+                seasons:
+                    data.seasonDetails,
+
+                actualRecords:
+                    data.fantasyWinLoss,
+
+                earnings:
+                    data.accumulatedEarnings,
+
+                scoreboard:
+                    data.scoreboard
+            )
     }
 }
 
@@ -172,22 +377,34 @@ final class LeagueDataStore: ObservableObject {
 private extension LeagueDataStore {
 
     func buildManagerProfiles(
-        seasons: [FantasySeasonDetails],
-        actualRecords: FantasyWinLossData,
-        earnings: [AccumulatedEarningsPlayer],
-        scoreboard: [ScoreboardSeason]
+        seasons:
+            [FantasySeasonDetails],
+
+        actualRecords:
+            FantasyWinLossData,
+
+        earnings:
+            [AccumulatedEarningsPlayer],
+
+        scoreboard:
+            [ScoreboardSeason]
+
     ) -> [ManagerProfile] {
 
-        var names = Set<String>()
+
+        var names =
+            Set<String>()
 
 
-        // MARK: Fantasy All-Play Names
+        // MARK: Fantasy Names
 
         for season in seasons {
 
-            for player in season.players {
+            for player in
+                season.players {
 
                 names.insert(
+
                     ManagerNameNormalizer
                         .normalize(
                             player.name
@@ -197,13 +414,16 @@ private extension LeagueDataStore {
         }
 
 
-        // MARK: Actual Fantasy Records
+        // MARK: Actual Fantasy Names
 
-        for season in actualRecords.seasons {
+        for season in
+            actualRecords.seasons {
 
-            for player in season.players {
+            for player in
+                season.players {
 
                 names.insert(
+
                     ManagerNameNormalizer
                         .normalize(
                             player.player
@@ -213,11 +433,12 @@ private extension LeagueDataStore {
         }
 
 
-        // MARK: Earnings
+        // MARK: Earnings Names
 
         for player in earnings {
 
             names.insert(
+
                 ManagerNameNormalizer
                     .normalize(
                         player.player
@@ -226,13 +447,15 @@ private extension LeagueDataStore {
         }
 
 
-        // MARK: Beer Games
+        // MARK: Beer Games Names
 
         for season in scoreboard {
 
-            for entry in season.entries {
+            for entry in
+                season.entries {
 
                 names.insert(
+
                     ManagerNameNormalizer
                         .normalize(
                             entry.player
@@ -242,42 +465,68 @@ private extension LeagueDataStore {
         }
 
 
-        // Remove people who should not appear
-        // in the Managers tab.
+        // MARK: Remove Non-Managers
 
         names.remove("Eagler")
+
+        names.remove("Handy")
+
         names.remove("HANDY")
+
         names.remove("Jim")
 
+
+        // MARK: Build Profiles
 
         return names
             .map { name in
 
                 buildManagerProfile(
-                    name: name,
-                    seasons: seasons,
+                    name:
+                        name,
+
+                    seasons:
+                        seasons,
+
                     actualRecords:
                         actualRecords,
-                    earnings: earnings,
-                    scoreboard: scoreboard
+
+                    earnings:
+                        earnings,
+
+                    scoreboard:
+                        scoreboard
                 )
             }
             .sorted {
-                $0.name < $1.name
+
+                $0.name <
+                $1.name
             }
     }
 
 
+    // MARK: - Build One Manager
+
     func buildManagerProfile(
         name: String,
-        seasons: [FantasySeasonDetails],
-        actualRecords: FantasyWinLossData,
-        earnings: [AccumulatedEarningsPlayer],
-        scoreboard: [ScoreboardSeason]
+
+        seasons:
+            [FantasySeasonDetails],
+
+        actualRecords:
+            FantasyWinLossData,
+
+        earnings:
+            [AccumulatedEarningsPlayer],
+
+        scoreboard:
+            [ScoreboardSeason]
+
     ) -> ManagerProfile {
 
 
-        // MARK: - All-Play Records
+        // MARK: All-Play Records
 
         var managerSeasons:
             [ManagerSeasonStats] = []
@@ -286,33 +535,46 @@ private extension LeagueDataStore {
         for season in seasons {
 
             if let player =
-                season.players.first(
-                    where: {
+                season.players
+                    .first(
+                        where: {
 
-                        ManagerNameNormalizer
-                            .normalize(
-                                $0.name
-                            ) == name
-                    }
-                ) {
+                            ManagerNameNormalizer
+                                .normalize(
+                                    $0.name
+                                ) == name
+                        }
+                    ) {
 
                 managerSeasons.append(
+
                     ManagerSeasonStats(
-                        manager: name,
-                        year: season.year,
-                        wins: player.wins,
-                        losses: player.losses
+
+                        manager:
+                            name,
+
+                        year:
+                            season.year,
+
+                        wins:
+                            player.wins,
+
+                        losses:
+                            player.losses
                     )
                 )
             }
         }
 
 
-        // MARK: - Actual Records
+        // MARK: Actual Records
 
         let managerActualRecords =
-            actualRecords.seasons
+
+            actualRecords
+                .seasons
                 .flatMap {
+
                     $0.players
                 }
                 .filter {
@@ -323,32 +585,40 @@ private extension LeagueDataStore {
                         ) == name
                 }
                 .sorted {
-                    $0.year > $1.year
+
+                    $0.year >
+                    $1.year
                 }
 
 
-        // MARK: - Fantasy Finishes
+        // MARK: Fantasy Finishes
 
         var managerFantasyFinishes:
             [ManagerFantasyFinish] = []
 
 
         for finish in
-            actualRecords.yearlyFinishes {
+            actualRecords
+                .yearlyFinishes {
 
             let firstPlace =
+
                 ManagerNameNormalizer
                     .normalize(
                         finish.firstPlace
                     )
 
+
             let secondPlace =
+
                 ManagerNameNormalizer
                     .normalize(
                         finish.secondPlace
                     )
 
+
             let thirdPlace =
+
                 ManagerNameNormalizer
                     .normalize(
                         finish.thirdPlace
@@ -357,43 +627,58 @@ private extension LeagueDataStore {
 
             if firstPlace == name {
 
-                managerFantasyFinishes.append(
-                    ManagerFantasyFinish(
-                        year:
-                            finish.year,
-                        place:
-                            1
+                managerFantasyFinishes
+                    .append(
+
+                        ManagerFantasyFinish(
+
+                            year:
+                                finish.year,
+
+                            place:
+                                1
+                        )
                     )
-                )
 
-            } else if secondPlace == name {
+            } else if
+                secondPlace == name {
 
-                managerFantasyFinishes.append(
-                    ManagerFantasyFinish(
-                        year:
-                            finish.year,
-                        place:
-                            2
+                managerFantasyFinishes
+                    .append(
+
+                        ManagerFantasyFinish(
+
+                            year:
+                                finish.year,
+
+                            place:
+                                2
+                        )
                     )
-                )
 
-            } else if thirdPlace == name {
+            } else if
+                thirdPlace == name {
 
-                managerFantasyFinishes.append(
-                    ManagerFantasyFinish(
-                        year:
-                            finish.year,
-                        place:
-                            3
+                managerFantasyFinishes
+                    .append(
+
+                        ManagerFantasyFinish(
+
+                            year:
+                                finish.year,
+
+                            place:
+                                3
+                        )
                     )
-                )
             }
         }
 
 
-        // MARK: - Earnings
+        // MARK: Earnings
 
         let managerEarnings =
+
             earnings.first {
 
                 ManagerNameNormalizer
@@ -403,11 +688,13 @@ private extension LeagueDataStore {
             }
 
 
-        // MARK: - Beer Games
+        // MARK: Beer Games
 
         let beerGameResults =
+
             scoreboard
                 .flatMap {
+
                     $0.entries
                 }
                 .filter {
@@ -418,11 +705,13 @@ private extension LeagueDataStore {
                         ) == name
                 }
                 .sorted {
-                    $0.year > $1.year
+
+                    $0.year >
+                    $1.year
                 }
 
 
-        // MARK: - Build Profile
+        // MARK: Build Profile
 
         return ManagerProfile(
 
@@ -432,7 +721,9 @@ private extension LeagueDataStore {
             seasons:
                 managerSeasons
                     .sorted {
-                        $0.year > $1.year
+
+                        $0.year >
+                        $1.year
                     },
 
             earnings:
@@ -447,7 +738,9 @@ private extension LeagueDataStore {
             fantasyFinishes:
                 managerFantasyFinishes
                     .sorted {
-                        $0.year > $1.year
+
+                        $0.year >
+                        $1.year
                     }
         )
     }
