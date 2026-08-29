@@ -22,15 +22,31 @@ struct ManagersHomeView: View {
                     !leagueData.errorMessage.isEmpty &&
                     leagueData.managers.isEmpty {
 
-                    ContentUnavailableView(
-                        "Unable to Load Managers",
-                        systemImage:
-                            "exclamationmark.triangle",
-                        description:
-                            Text(
-                                leagueData.errorMessage
-                            )
+                    VStack(spacing: 12) {
+
+                        Image(
+                            systemName: "chart.bar"
+                        )
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+
+                        Text(
+                            "No Data Available"
+                        )
+                        .font(.headline)
+
+                        Text(
+                            "There is currently no player data to display."
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    }
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: .infinity
                     )
+                    .padding()
 
                 } else {
 

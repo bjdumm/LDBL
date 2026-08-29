@@ -7,66 +7,114 @@
 
 import SwiftUI
 
+
 struct ScoreboardEntryView: View {
 
-    let entry: ScoreboardEntry
+    let entry:
+        ScoreboardEntry
+
+    let season:
+        ScoreboardSeason
+
 
     var body: some View {
 
         List {
 
+            // MARK: - Total Points
+
             Section {
 
                 HStack {
 
-                    Text("Total Points")
+                    Text(
+                        "Total Points"
+                    )
+
 
                     Spacer()
+
 
                     Text(
                         "\(entry.totalPoints)"
                     )
-                    .font(.title3)
-                    .fontWeight(.bold)
+                    .font(
+                        .title3
+                    )
+                    .fontWeight(
+                        .bold
+                    )
                 }
             }
 
-            Section("Events") {
 
-                ForEach(entry.events) { event in
+            // MARK: - Events
 
-                    VStack(
-                        alignment: .leading,
-                        spacing: 6
-                    ) {
+            Section(
+                "Events"
+            ) {
 
-                        HStack {
+                ForEach(
+                    entry.events
+                ) { event in
 
-                            Text(event.event)
+                    NavigationLink {
+
+                        BeerGameEventResultsView(
+                            season: season,
+                            eventName: event.event
+                        )
+
+                    } label: {
+
+                        VStack(
+                            alignment: .leading,
+                            spacing: 6
+                        ) {
+
+                            HStack {
+
+                                Text(
+                                    event.event
+                                )
                                 .fontWeight(
                                     .semibold
                                 )
 
-                            Spacer()
 
-                            Text(
-                                "\(event.points) pts"
-                            )
-                        }
+                                Spacer()
 
-                        if !event.result.isEmpty {
 
-                            Text(event.result)
-                                .font(.caption)
+                                Text(
+                                    "\(event.points) pts"
+                                )
+                            }
+
+
+                            if !event.result
+                                .isEmpty {
+
+                                Text(
+                                    event.result
+                                )
+                                .font(
+                                    .caption
+                                )
                                 .foregroundStyle(
                                     .secondary
                                 )
+                            }
                         }
                     }
                 }
             }
         }
-        .navigationTitle(entry.player)
+        .navigationTitle(
+            ManagerNameNormalizer
+                .normalize(
+                    entry.player
+                )
+        )
         .navigationBarTitleDisplayMode(
             .inline
         )

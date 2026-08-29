@@ -190,11 +190,31 @@ struct BeerGameRecordHoldersView: View {
 
             } else {
 
-                ContentUnavailableView(
-                    "No Records Available",
-                    systemImage:
-                        "trophy"
+                VStack(spacing: 12) {
+
+                    Image(
+                        systemName: "chart.bar"
+                    )
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+
+                    Text(
+                        "No Data Available"
+                    )
+                    .font(.headline)
+
+                    Text(
+                        "There is currently no player data to display."
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                }
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: .infinity
                 )
+                .padding()
             }
         }
         .navigationTitle(

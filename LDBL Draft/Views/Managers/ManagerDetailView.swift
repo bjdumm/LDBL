@@ -2,7 +2,11 @@ import SwiftUI
 
 struct ManagerDetailView: View {
 
+    @EnvironmentObject var leagueData:
+        LeagueDataStore
+
     let manager: ManagerProfile
+
 
     var body: some View {
 
@@ -20,8 +24,12 @@ struct ManagerDetailView: View {
 
             yearlyEarningsSection
         }
-        .navigationTitle(manager.name)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(
+            manager.name
+        )
+        .navigationBarTitleDisplayMode(
+            .inline
+        )
     }
 }
 
@@ -41,25 +49,30 @@ private extension ManagerDetailView {
                 "\(manager.seasonsPlayed)"
             )
 
+
             statRow(
                 "Championships",
                 "\(manager.fantasyChampionships)"
             )
+
 
             statRow(
                 "Beer Game Championships",
                 "\(manager.beerGameChampionships)"
             )
 
+
             statRow(
                 "Actual Record",
                 "\(manager.actualCareerWins)-\(manager.actualCareerLosses)"
             )
 
+
             statRow(
                 "All-Play Record",
                 "\(manager.allPlayCareerWins)-\(manager.allPlayCareerLosses)"
             )
+
 
             statRow(
                 "Actual Win %",
@@ -67,6 +80,7 @@ private extension ManagerDetailView {
                     manager.actualCareerWinPercentage
                 )
             )
+
 
             statRow(
                 "All-Play Win %",
@@ -82,21 +96,28 @@ private extension ManagerDetailView {
 
     var seasonHistorySection: some View {
 
-        Section("Fantasy Season History") {
+        Section(
+            "Fantasy Season History"
+        ) {
 
-            ForEach(manager.seasons) { season in
+            ForEach(
+                manager.seasons
+            ) { season in
 
                 let actual =
                     manager
                         .actualFantasyRecords
                         .first {
-                            $0.year == season.year
+                            $0.year ==
+                                season.year
                         }
+
 
                 let finish =
                     manager.fantasyFinish(
                         for: season.year
                     )
+
 
                 let isChampion =
                     finish?.place == 1
@@ -109,11 +130,15 @@ private extension ManagerDetailView {
 
                     // MARK: Year
 
-                    HStack(spacing: 7) {
+                    HStack(
+                        spacing: 7
+                    ) {
 
                         Text(
                             verbatim:
-                                String(season.year)
+                                String(
+                                    season.year
+                                )
                         )
                         .font(
                             isChampion
@@ -153,7 +178,9 @@ private extension ManagerDetailView {
                             Text(
                                 "\(actual.wins)-\(actual.losses)"
                             )
-                            .fontWeight(.semibold)
+                            .fontWeight(
+                                .semibold
+                            )
 
                         } else {
 
@@ -176,7 +203,9 @@ private extension ManagerDetailView {
                         Text(
                             "\(season.wins)-\(season.losses)"
                         )
-                        .fontWeight(.semibold)
+                        .fontWeight(
+                            .semibold
+                        )
                     }
 
 
@@ -190,7 +219,9 @@ private extension ManagerDetailView {
 
                         if let finish {
 
-                            HStack(spacing: 6) {
+                            HStack(
+                                spacing: 6
+                            ) {
 
                                 Image(
                                     systemName:
@@ -261,17 +292,21 @@ private extension ManagerDetailView {
 
     var beerGamesCareerSection: some View {
 
-        Section("Beer Games Career") {
+        Section(
+            "Beer Games Career"
+        ) {
 
             statRow(
                 "Seasons",
                 "\(manager.beerGameSeasonsPlayed)"
             )
 
+
             statRow(
                 "Total Points",
                 "\(manager.beerGameTotalPoints)"
             )
+
 
             statRow(
                 "Average Points",
@@ -279,6 +314,7 @@ private extension ManagerDetailView {
                     manager.averageBeerGamePoints
                 )
             )
+
 
             if let bestFinish =
                 manager.bestBeerGameFinish {
@@ -288,6 +324,7 @@ private extension ManagerDetailView {
                     "#\(bestFinish)"
                 )
             }
+
 
             statRow(
                 "Championships",
@@ -301,9 +338,13 @@ private extension ManagerDetailView {
 
     var beerGamesHistorySection: some View {
 
-        Section("Beer Games History") {
+        Section(
+            "Beer Games History"
+        ) {
 
-            if manager.beerGameResults.isEmpty {
+            if manager
+                .beerGameResults
+                .isEmpty {
 
                 Text(
                     "No Beer Games history available."
@@ -320,9 +361,37 @@ private extension ManagerDetailView {
 
                     NavigationLink {
 
-                        ScoreboardEntryView(
-                            entry: result
-                        )
+                        if let season =
+                            leagueData
+                                .scoreboard
+                                .first(
+                                    where: {
+                                        $0.year ==
+                                            result.year
+                                    }
+                                ) {
+
+                            ScoreboardEntryView(
+                                entry:
+                                    result,
+                                season:
+                                    season
+                            )
+
+                        } else {
+
+                            ScoreboardEntryView(
+                                entry:
+                                    result,
+                                season:
+                                    ScoreboardSeason(
+                                        year:
+                                            result.year,
+                                        entries:
+                                            [result]
+                                    )
+                            )
+                        }
 
                     } label: {
 
@@ -335,7 +404,9 @@ private extension ManagerDetailView {
                                     )
                             )
 
+
                             Spacer()
+
 
                             Text(
                                 "#\(result.place)"
@@ -343,6 +414,7 @@ private extension ManagerDetailView {
                             .fontWeight(
                                 .semibold
                             )
+
 
                             Text(
                                 "\(result.totalPoints) pts"
@@ -362,17 +434,21 @@ private extension ManagerDetailView {
 
     var earningsSection: some View {
 
-        Section("Career Earnings") {
+        Section(
+            "Career Earnings"
+        ) {
 
             moneyRow(
                 "Winnings",
                 manager.totalWinnings
             )
 
+
             moneyRow(
                 "Fees",
                 manager.totalFees
             )
+
 
             moneyRow(
                 "Return",
@@ -407,7 +483,9 @@ private extension ManagerDetailView {
                                 )
                         )
 
+
                         Spacer()
+
 
                         if let amount =
                             season.amount {
@@ -448,7 +526,8 @@ private extension ManagerDetailView {
             Spacer()
 
             Text(
-                verbatim: value
+                verbatim:
+                    value
             )
             .fontWeight(
                 .semibold

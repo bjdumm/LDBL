@@ -3,14 +3,16 @@
 //  LDBL Draft
 //
 //  Created by Brennan Dumm on 8/15/26.
-
+//
 
 import SwiftUI
+
 
 struct ScoreboardAllView: View {
 
     @EnvironmentObject var leagueData:
         LeagueDataStore
+
 
     var body: some View {
 
@@ -38,7 +40,8 @@ struct ScoreboardAllView: View {
                             NavigationLink {
 
                                 ScoreboardEntryView(
-                                    entry: entry
+                                    entry: entry,
+                                    season: season
                                 )
 
                             } label: {
