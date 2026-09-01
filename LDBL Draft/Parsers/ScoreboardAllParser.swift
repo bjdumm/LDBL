@@ -20,17 +20,31 @@ struct ScoreboardAllParser {
                 continue
             }
 
-            let endIndex: Int
+            // Stop each season at the next year block OR at the
+            // spreadsheet's trailing "ALL" summary section.
+            //
+            // Without this boundary the final season (for example 2026)
+            // can accidentally absorb the ALL-time summary rows below it.
+            // Those summary rows contain manager names in the event-result
+            // columns, which is why the Top 10 screen could show a manager
+            // name as both the player and the result.
+            let nextYearIndex =
+                position + 1 < yearRows.count
+                    ? yearRows[position + 1]
+                    : rows.count
 
-            if position + 1 < yearRows.count {
+            let allSummaryIndex =
+                rows[startIndex..<rows.count]
+                    .firstIndex { row in
+                        value(row, 0)
+                            .uppercased() == "ALL"
+                    } ?? rows.count
 
-                endIndex =
-                    yearRows[position + 1]
-
-            } else {
-
-                endIndex = rows.count
-            }
+            let endIndex =
+                min(
+                    nextYearIndex,
+                    allSummaryIndex
+                )
 
             let season =
                 parseSeason(
@@ -100,6 +114,14 @@ private extension ScoreboardAllParser {
         for index in firstPlayerRow..<endIndex {
 
             let row = rows[index]
+
+            // Real player rows in Scoreboard ALL have a numeric
+            // position in column A and the manager name in column B.
+            // Requiring both prevents labels/summary rows from ever being
+            // interpreted as season results if the sheet grows later.
+            guard Int(value(row, 0)) != nil else {
+                continue
+            }
 
             let rawPlayer =
                 value(row, 1)

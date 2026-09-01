@@ -330,6 +330,22 @@ private extension ManagerDetailView {
                 "Championships",
                 "\(manager.beerGameChampionships)"
             )
+
+
+            NavigationLink {
+
+                ManagerBeerGamePersonalRecordsView(
+                    managerName: manager.name,
+                    scoreboard: leagueData.scoreboard
+                )
+
+            } label: {
+
+                Label(
+                    "Personal Best & Worst",
+                    systemImage: "medal.fill"
+                )
+            }
         }
     }
 

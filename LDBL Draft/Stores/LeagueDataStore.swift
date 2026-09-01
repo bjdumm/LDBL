@@ -24,6 +24,9 @@ final class LeagueDataStore:
     @Published var accumulatedEarnings:
         [AccumulatedEarningsPlayer] = []
 
+    @Published var yearEndRosters:
+        [YearEndRosterSeason] = []
+
 
     // MARK: - Beer Games
 
@@ -300,6 +303,12 @@ final class LeagueDataStore:
     private func shouldAutomaticallyRefresh()
         -> Bool {
 
+        // Older caches created before Draft/Year-End Rosters existed
+        // should be upgraded immediately instead of waiting 12 hours.
+        if yearEndRosters.isEmpty {
+            return true
+        }
+
         guard let lastUpdated
         else {
             return true
@@ -336,6 +345,9 @@ final class LeagueDataStore:
 
         accumulatedEarnings =
             data.accumulatedEarnings
+
+        yearEndRosters =
+            data.yearEndRosters
 
 
         // Beer Games

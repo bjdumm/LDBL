@@ -33,55 +33,19 @@ struct BeerGameRecordHoldersView: View {
                             data.eventRecords
                         ) { record in
 
-                            VStack(
-                                alignment: .leading,
-                                spacing: 5
-                            ) {
+                            NavigationLink {
 
-                                HStack {
+                                BeerGameAllTimeTopTenView(
+                                    eventName: record.event,
+                                    scoreboard: leagueData.scoreboard
+                                )
 
-                                    Text(
-                                        record.event
-                                    )
-                                    .fontWeight(
-                                        .semibold
-                                    )
+                            } label: {
 
-                                    Spacer()
-
-                                    Text(
-                                        record.score
-                                    )
-                                }
-
-
-                                HStack {
-
-                                    Text(
-                                        ManagerNameNormalizer
-                                            .normalize(
-                                                record.player
-                                            )
-                                    )
-
-                                    Spacer()
-
-                                    Text(
-                                        verbatim:
-                                            String(
-                                                record.season
-                                            )
-                                    )
-                                }
-                                .font(.caption)
-                                .foregroundStyle(
-                                    .secondary
+                                eventRecordRow(
+                                    record
                                 )
                             }
-                            .padding(
-                                .vertical,
-                                3
-                            )
                         }
                     }
 
@@ -224,6 +188,108 @@ struct BeerGameRecordHoldersView: View {
 
             await leagueData.refresh()
         }
+    }
+
+
+    // MARK: - Dynamic Event Record
+
+    @ViewBuilder
+    private func eventRecordRow(
+        _ record: BeerGameEventRecord
+    ) -> some View {
+
+        let liveRecord =
+            bestPerformance(
+                for: record.event
+            )
+
+        let player =
+            liveRecord?.player ??
+            ManagerNameNormalizer
+                .normalize(
+                    record.player
+                )
+
+        let result =
+            liveRecord?.result ??
+            record.score
+
+        let year =
+            liveRecord?.year ??
+            record.season
+
+        VStack(
+            alignment: .leading,
+            spacing: 5
+        ) {
+
+            HStack {
+
+                Text(
+                    record.event
+                )
+                .fontWeight(
+                    .semibold
+                )
+
+                Spacer()
+
+                Text(
+                    result
+                )
+            }
+
+
+            HStack {
+
+                Text(
+                    player
+                )
+
+                Spacer()
+
+                Text(
+                    verbatim:
+                        String(
+                            year
+                        )
+                )
+            }
+            .font(.caption)
+            .foregroundStyle(
+                .secondary
+            )
+        }
+        .padding(
+            .vertical,
+            3
+        )
+    }
+
+
+    private func bestPerformance(
+        for eventName: String
+    ) -> BeerGamePerformance? {
+
+        let performances =
+            BeerGamePerformanceRanking
+                .performances(
+                    eventName: eventName,
+                    scoreboard: leagueData.scoreboard
+                )
+
+        let timed =
+            BeerGamePerformanceRanking
+                .isTimed(
+                    performances
+                )
+
+        return BeerGamePerformanceRanking
+            .sorted(
+                performances,
+                timed: timed
+            )
+            .first
     }
 
 

@@ -33,6 +33,20 @@ struct FantasyHomeView: View {
 
                     NavigationLink {
 
+                        DraftView()
+
+                    } label: {
+
+                        Label(
+                            "Draft",
+                            systemImage:
+                                "person.3.sequence.fill"
+                        )
+                    }
+
+
+                    NavigationLink {
+
                         FantasyWinLossView()
 
                     } label: {

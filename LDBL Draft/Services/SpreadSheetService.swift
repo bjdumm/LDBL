@@ -50,6 +50,9 @@ struct LeagueDataPayload {
     let accumulatedEarnings:
         [AccumulatedEarningsPlayer]
 
+    let yearEndRosters:
+        [YearEndRosterSeason]
+
     let scoreboard:
         [ScoreboardSeason]
 
@@ -94,9 +97,15 @@ final class SpreadsheetService {
         async throws
         -> LeagueDataFetchResult {
 
-        let sheets =
+        var sheets =
             try await fetchAllSheets()
 
+        let rosterSheets =
+            await fetchAvailableYearEndRosterSheets()
+
+        for (name, rows) in rosterSheets {
+            sheets[name] = rows
+        }
 
         let payload =
             try parseLeagueData(
@@ -238,6 +247,15 @@ final class SpreadsheetService {
                         rulesRows
                 )
 
+        let yearEndRosters =
+            sheets.compactMap { name, rows -> YearEndRosterSeason? in
+                guard name.hasPrefix("Year-End Roster "),
+                      let year = Int(name.replacingOccurrences(of: "Year-End Roster ", with: ""))
+                else { return nil }
+                return YearEndRosterParser.parse(rows: rows, fallbackYear: year)
+            }
+            .sorted { $0.year > $1.year }
+
 
         return LeagueDataPayload(
 
@@ -249,6 +267,9 @@ final class SpreadsheetService {
 
             accumulatedEarnings:
                 accumulatedEarnings,
+
+            yearEndRosters:
+                yearEndRosters,
 
             scoreboard:
                 scoreboard,
@@ -419,6 +440,25 @@ final class SpreadsheetService {
         throw URLError(
             .badServerResponse
         )
+    }
+
+
+    // MARK: - Dynamic Year-End Roster Discovery
+
+    private func fetchAvailableYearEndRosterSheets() async -> [String: [[String]]] {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        var found: [String: [[String]]] = [:]
+
+        for year in 2025...max(2025, currentYear) {
+            let name = "Year-End Roster \(year)"
+            do {
+                let rows = try await fetchSheet(named: name)
+                if !rows.isEmpty { found[name] = rows }
+            } catch {
+                print("No year-end roster sheet for \(year).")
+            }
+        }
+        return found
     }
 
 
