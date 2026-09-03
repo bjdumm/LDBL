@@ -2,8 +2,6 @@
 //  ScoreboardModels.swift
 //  LDBL Draft
 //
-//  Created by Brennan Dumm on 8/15/26.
-//
 
 import Foundation
 
@@ -12,6 +10,24 @@ struct ScoreboardSeason: Identifiable {
 
     let year: Int
     let entries: [ScoreboardEntry]
+    let participants: [String]
+
+    init(
+        year: Int,
+        entries: [ScoreboardEntry],
+        participants: [String]? = nil
+    ) {
+        self.year = year
+        self.entries = entries
+
+        if let participants {
+            self.participants = participants
+        } else {
+            self.participants = entries.map {
+                ManagerNameNormalizer.normalize($0.player)
+            }
+        }
+    }
 }
 
 struct ScoreboardEntry: Identifiable {
@@ -32,4 +48,17 @@ struct ScoreboardEventResult: Identifiable {
     let event: String
     let result: String
     let points: Int
+    let pointsEntered: Bool
+
+    init(
+        event: String,
+        result: String,
+        points: Int,
+        pointsEntered: Bool = true
+    ) {
+        self.event = event
+        self.result = result
+        self.points = points
+        self.pointsEntered = pointsEntered
+    }
 }

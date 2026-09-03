@@ -2,7 +2,11 @@
 //  LeagueDataStore.swift
 //  LDBL Draft
 //
-//  Created by Brennan Dumm on 8/16/26.
+//  Fresh-data-first version.
+//
+//  Cached data is still shown immediately at launch,
+//  but Google is always queried whenever the app
+//  launches or becomes active.
 //
 
 import Foundation
@@ -10,8 +14,7 @@ import Combine
 
 
 @MainActor
-final class LeagueDataStore:
-    ObservableObject {
+final class LeagueDataStore: ObservableObject {
 
     // MARK: - Fantasy
 
@@ -58,20 +61,27 @@ final class LeagueDataStore:
         Date?
 
 
-    private var hasLoaded = false
+    // MARK: - Internal State
 
+    private var hasLoaded = false
+    private var hasCompletedInitialLoad = false
 
     /*
-     Automatically fetch Google again
-     if the saved data is older than
-     12 hours.
+     If multiple things ask for a refresh at almost
+     the same time — for example:
 
-     Pull-to-refresh ignores this.
+     - app enters foreground
+     - push notification arrives
+     - view appears
+
+     — we don't want to fire several Google requests.
+
+     If a refresh is already happening, we remember
+     that another fresh request was requested and run
+     one more immediately afterward.
     */
 
-    private let automaticRefreshInterval:
-        TimeInterval =
-            12 * 60 * 60
+    private var refreshRequestedWhileRefreshing = false
 
 
     // MARK: - Initial App Load
@@ -82,121 +92,157 @@ final class LeagueDataStore:
             return
         }
 
-
         hasLoaded = true
-
 
         var loadedCache = false
 
 
-        // MARK: Load Cache First
+        // MARK: Load Cache
+
+        /*
+         The cache exists ONLY to make the app
+         appear immediately.
+
+         Cached data is never considered authoritative
+         for league-news detection.
+        */
 
         do {
 
             if let cached =
-                try await
-                    LeagueDataCache
-                        .shared
-                        .load() {
+                try await LeagueDataCache
+                    .shared
+                    .load() {
 
                 let payload =
                     try SpreadsheetService
                         .shared
                         .parseLeagueData(
-                            from:
-                                cached.sheets
+                            from: cached.sheets
                         )
 
-
                 apply(
-                    payload
+                    payload,
+                    processLeagueNews: false
                 )
-
 
                 lastUpdated =
                     cached.lastUpdated
 
-
                 loadedCache = true
 
-
                 print(
-                    "Loaded league data from local cache."
+                    "📦 Loaded league data from local cache."
                 )
             }
 
         } catch {
 
             print(
-                "Unable to load league cache:",
+                "⚠️ Unable to load league cache:",
                 error.localizedDescription
             )
         }
 
 
-        /*
-         If there's no cache at all,
-         show the loading indicator.
-
-         If we DO have cached data,
-         leave the interface visible.
-        */
-
         if !loadedCache {
-
             isLoading = true
         }
 
 
-        // MARK: Decide Whether Google Is Needed
+        // MARK: Always Get Fresh Google Data
 
-        if shouldAutomaticallyRefresh() {
+        /*
+         Every launch ALWAYS requests Google.
 
-            await refreshFromGoogle(
-                showLoading:
-                    !loadedCache
-            )
+         This is intentional.
 
-        } else {
+         We do not care how young the cache is.
+        */
 
-            isLoading = false
+        await performGoogleRefresh(
+            showLoading: !loadedCache
+        )
 
 
-            print(
-                "Cached league data is still fresh."
-            )
-        }
+        hasCompletedInitialLoad = true
     }
 
 
-    // MARK: - Pull To Refresh
+    // MARK: - App Became Active
 
     /*
-     Existing views already call:
+     This is the important method for your use case.
 
-     await leagueData.refresh()
+     Any time the manager returns to LDBL from:
 
-     This ALWAYS fetches Google,
-     regardless of cache age.
+     - Home Screen
+     - another app
+     - lock screen
+     - notification
+     - Control Center interruption
+
+     we immediately fetch Google again.
+    */
+
+    func refreshWhenAppBecomesActive() async {
+
+        /*
+         During the very first launch,
+         loadIfNeeded() is already doing the
+         authoritative Google fetch.
+
+         Avoid creating a duplicate request
+         during that initial startup.
+        */
+
+        guard hasCompletedInitialLoad else {
+            return
+        }
+
+        print(
+            "🔄 App became active — forcing fresh Google Sheet fetch."
+        )
+
+        await forceRefresh()
+    }
+
+
+    // MARK: - Public Manual Refresh
+
+    /*
+     Existing views can continue calling:
+
+         await leagueData.refresh()
+
+     This ALWAYS requests Google.
     */
 
     func refresh() async {
 
-        await refreshFromGoogle(
-            showLoading: false
-        )
+        await forceRefresh()
     }
 
 
+    // MARK: - Forced Refresh
+
+    func forceRefresh() async {
+        // SwiftUI .refreshable waits for this call. If another refresh is
+        // already running, wait for it rather than returning immediately.
+        while isRefreshing {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+
+        await performGoogleRefresh(showLoading: false)
+    }
+
     // MARK: - Google Refresh
 
-    private func refreshFromGoogle(
+    private func performGoogleRefresh(
         showLoading: Bool
     ) async {
 
-        guard !isRefreshing else {
-            return
-        }
+        guard !isRefreshing else { return }
 
 
         isRefreshing = true
@@ -205,9 +251,13 @@ final class LeagueDataStore:
 
 
         if showLoading {
-
             isLoading = true
         }
+
+
+        print(
+            "🌐 Fetching fresh league data from Google..."
+        )
 
 
         defer {
@@ -221,69 +271,80 @@ final class LeagueDataStore:
         do {
 
             let freshData =
-                try await
-                    SpreadsheetService
-                        .shared
-                        .fetchLeagueData()
+                try await SpreadsheetService
+                    .shared
+                    .fetchLeagueData()
 
 
-            // MARK: Update UI
+            // MARK: Update UI Immediately
+
+            /*
+             This publishes the newly fetched
+             scoreboard/fantasy data to every view.
+
+             League News is processed from THIS
+             fresh scoreboard.
+            */
 
             apply(
-                freshData.payload
+                freshData.payload,
+                processLeagueNews: true
             )
 
 
-            // MARK: Save Cache
+            lastUpdated =
+                Date()
+
+
+            print(
+                "✅ Fresh Google data applied to app."
+            )
+
+
+            // MARK: Save Fresh Data To Cache
 
             do {
 
-                try await
-                    LeagueDataCache
-                        .shared
-                        .save(
-                            sheets:
-                                freshData
-                                    .rawSheets
-                        )
-
-
-                lastUpdated =
-                    Date()
-
+                try await LeagueDataCache
+                    .shared
+                    .save(
+                        sheets:
+                            freshData.rawSheets
+                    )
 
                 print(
-                    "Saved fresh league data to local cache."
+                    "💾 Fresh league data saved to local cache."
                 )
 
             } catch {
 
                 /*
-                 Don't fail the UI merely
-                 because saving the cache
-                 failed.
+                 Cache failure should never stop
+                 the freshly loaded UI data.
                 */
 
                 print(
-                    "Unable to save league cache:",
+                    "⚠️ Unable to save league cache:",
                     error.localizedDescription
                 )
             }
 
 
             print(
-                "League data refresh complete."
+                "✅ League data refresh complete."
             )
+
 
         } catch {
 
             /*
              IMPORTANT:
 
-             We do NOT clear existing data.
+             Never erase the existing UI data
+             because of a network failure.
 
-             If cached data was already
-             displayed, it remains displayed.
+             Cached / previously fetched data
+             remains visible.
             */
 
             errorMessage =
@@ -291,49 +352,21 @@ final class LeagueDataStore:
 
 
             print(
-                "League refresh failed:",
+                "❌ League refresh failed:",
                 error.localizedDescription
             )
         }
     }
 
 
-    // MARK: - Cache Freshness
-
-    private func shouldAutomaticallyRefresh()
-        -> Bool {
-
-        // Older caches created before Draft/Year-End Rosters existed
-        // should be upgraded immediately instead of waiting 12 hours.
-        if yearEndRosters.isEmpty {
-            return true
-        }
-
-        guard let lastUpdated
-        else {
-            return true
-        }
-
-
-        let age =
-            Date()
-                .timeIntervalSince(
-                    lastUpdated
-                )
-
-
-        return age >=
-            automaticRefreshInterval
-    }
-
-
     // MARK: - Apply Loaded Data
 
     private func apply(
-        _ data: LeagueDataPayload
+        _ data: LeagueDataPayload,
+        processLeagueNews: Bool
     ) {
 
-        // Fantasy
+        // MARK: Fantasy
 
         seasonDetails =
             data.seasonDetails
@@ -346,14 +379,33 @@ final class LeagueDataStore:
         accumulatedEarnings =
             data.accumulatedEarnings
 
+
         yearEndRosters =
             data.yearEndRosters
 
 
-        // Beer Games
+        // MARK: Beer Games
 
         scoreboard =
             data.scoreboard
+
+
+        /*
+         Only fresh Google data reaches this with
+         processLeagueNews == true.
+
+         Cached data cannot accidentally generate
+         old winner/champion announcements.
+        */
+
+        if processLeagueNews {
+
+            LeagueNewsManager
+                .shared
+                .processFreshScoreboard(
+                    data.scoreboard
+                )
+        }
 
 
         beerGameRecordHolders =
@@ -364,7 +416,7 @@ final class LeagueDataStore:
             data.gamesAndRules
 
 
-        // Managers
+        // MARK: Managers
 
         managers =
             buildManagerProfiles(

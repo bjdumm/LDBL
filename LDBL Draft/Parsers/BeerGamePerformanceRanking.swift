@@ -22,7 +22,7 @@ enum BeerGamePerformanceRanking {
 
         // Overall Points comes from each season total rather than an
         // individual event column.
-        if canonical(eventName) == "overallpoints" {
+        if eventKey(eventName) == "overallpoints" {
             return scoreboard.flatMap { season in
                 season.entries.compactMap { entry in
                     guard entry.totalPoints > 0 else {
@@ -227,36 +227,28 @@ enum BeerGamePerformanceRanking {
         _ lhs: String,
         _ rhs: String
     ) -> Bool {
-
-        let a = canonical(lhs)
-        let b = canonical(rhs)
-
-        if a == b {
-            return true
-        }
-
-        // Record Holders and Scoreboard ALL do not always use the exact same
-        // historical label. Keep aliases here so the leaderboard is based on
-        // the actual Scoreboard ALL results rather than the record-holder row.
-        let aliases: [Set<String>] = [
-            ["flipcup", "flipcupgame"],
-            ["fourcorners", "4corners"],
-            ["showcase", "showcaseevent"]
-        ]
-
-        return aliases.contains {
-            $0.contains(a) && $0.contains(b)
-        }
+        eventKey(lhs) == eventKey(rhs)
     }
 
 
-    private static func canonical(
+    static func eventKey(
         _ value: String
     ) -> String {
-        value
+        let key = value
             .lowercased()
             .filter {
                 $0.isLetter || $0.isNumber
             }
+
+        switch key {
+        case "flipcupgame":
+            return "flipcup"
+        case "4corners":
+            return "fourcorners"
+        case "showcaseevent":
+            return "showcase"
+        default:
+            return key
+        }
     }
 }

@@ -97,6 +97,8 @@ private extension ScoreboardAllParser {
         var unrankedEntries:
             [UnrankedEntry] = []
 
+        var participants: [String] = []
+
         let firstPlayerRow =
             startIndex + 2
 
@@ -134,6 +136,10 @@ private extension ScoreboardAllParser {
                 ManagerNameNormalizer
                     .normalize(rawPlayer)
 
+            if !participants.contains(player) {
+                participants.append(player)
+            }
+
             var events:
                 [ScoreboardEventResult] = []
 
@@ -158,19 +164,23 @@ private extension ScoreboardAllParser {
                         eventColumn
                     )
 
-                let points =
-                    integer(
-                        value(
-                            row,
-                            eventColumn + 1
-                        )
+                let pointsText =
+                    value(
+                        row,
+                        eventColumn + 1
                     )
+
+                let points =
+                    integer(pointsText)
 
                 events.append(
                     ScoreboardEventResult(
                         event: eventName,
                         result: result,
-                        points: points
+                        points: points,
+                        pointsEntered:
+                            !pointsText.isEmpty &&
+                            pointsText != "-"
                     )
                 )
             }
@@ -266,7 +276,8 @@ private extension ScoreboardAllParser {
 
         return ScoreboardSeason(
             year: year,
-            entries: rankedEntries
+            entries: rankedEntries,
+            participants: participants
         )
     }
 

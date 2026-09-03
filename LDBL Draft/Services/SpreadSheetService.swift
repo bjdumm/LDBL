@@ -289,11 +289,15 @@ final class SpreadsheetService {
         async throws
         -> [String: [[String]]] {
 
-        guard let url =
-                URL(
-                    string: baseURL
-                )
-        else {
+        guard var components = URLComponents(string: baseURL) else {
+            throw URLError(.badURL)
+        }
+
+        components.queryItems = [
+            URLQueryItem(name: "_fresh", value: String(Date().timeIntervalSince1970))
+        ]
+
+        guard let url = components.url else {
 
             throw URLError(
                 .badURL
@@ -324,7 +328,7 @@ final class SpreadsheetService {
                     try await
                     URLSession.shared
                         .data(
-                            from: url
+                            for: freshRequest(url)
                         )
 
 
@@ -485,6 +489,10 @@ final class SpreadsheetService {
             URLQueryItem(
                 name: "sheet",
                 value: sheetName
+            ),
+            URLQueryItem(
+                name: "_fresh",
+                value: String(Date().timeIntervalSince1970)
             )
         ]
 
@@ -512,7 +520,7 @@ final class SpreadsheetService {
             try await
             URLSession.shared
                 .data(
-                    from: url
+                    for: freshRequest(url)
                 )
 
 
@@ -567,6 +575,18 @@ final class SpreadsheetService {
 
 
         return result.rows ?? []
+    }
+
+
+    private func freshRequest(_ url: URL) -> URLRequest {
+        var request = URLRequest(
+            url: url,
+            cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+            timeoutInterval: 30
+        )
+        request.setValue("no-cache, no-store, max-age=0", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        return request
     }
 
 
