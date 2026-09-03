@@ -53,9 +53,9 @@ struct ManagerRow: View {
             Spacer()
 
 
-            if manager.totalWinnings > 0 {
+         /*   if manager.totalWinnings > 0 {
 
-                Text(
+               Text(
                     verbatim:
                         AppNumberFormat.currency(
                             manager.totalWinnings
@@ -65,7 +65,7 @@ struct ManagerRow: View {
                 .fontWeight(
                     .semibold
                 )
-            }
+            }*/
         }
         .padding(
             .vertical,
